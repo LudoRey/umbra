@@ -3,11 +3,11 @@
   <tr>
     <td align="center">
       <img src="docs/assets/moon_registration.gif" width="300"/><br/>
-      <sub>Moon registration</sub>
+      Moon registration
     </td>
     <td align="center">
       <img src="docs/assets/sun_registration.gif" width="300"/><br/>
-      <sub>Sun registration</sub>
+      Sun registration
     </td>
   </tr>
 </table>
@@ -20,18 +20,19 @@ Note: some antivirus software may flag the executable as a false positive; if th
 
 # Quick start
 
-The only feature available as of now is image registration. 
+The software should be self-explanatory : you can hover over almost any element to see a tooltip explaining its function. To make things even easier, this quick guide will help you get started.
+
+## Registration
 
 Before using Umbra for image registration, you must convert your (debayered) images to FITS format, and place them in a single folder. **Do not organize your images into subfolders**.
 
 
 1. Open the folder containing your FITS images
-<video src="docs/assets/quick_start/select_folder.mkv" width="320" height="240" controls></video>
-2. Select a **reference image** and one (or more) **anchor images**. 
-<video src="docs/assets/quick_start/select_reference_and_anchor.mkv" width="320" height="240" controls></video>
-3. Set your image scale.
-4. Click on run!
-<video src="docs/assets/quick_start/image_scale_and_run.mkv" width="320" height="240" controls></video>
+<img src="docs/assets/quick_start/open_folder.gif" width="720">
+2. Select a **reference image** and **anchor image(s)**. Hover over the reference/anchor icons to see tips on how to make your selection.
+<img src="docs/assets/quick_start/select_reference_and_anchor.gif" width="720">
+3. Set your image scale and click on start.
+<img src="docs/assets/quick_start/set_image_scale_and_run.gif" width="720">
 
 # CLI (Advanced)
 
