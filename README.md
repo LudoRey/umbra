@@ -1,7 +1,39 @@
-# Umbra (GUI)
-To use Umbra, you simply need to download the [latest release](https://github.com/LudoRey/umbra/releases/latest). The executable may be flagged by your antivirus as a false positive. If this happens, consider adding it to your antivirus's exclusion list.
+<div align="center">
+<table>
+  <tr>
+    <td align="center">
+      <img src="docs/assets/moon_registration.gif" width="300"/><br/>
+      <sub>Moon registration</sub>
+    </td>
+    <td align="center">
+      <img src="docs/assets/sun_registration.gif" width="300"/><br/>
+      <sub>Sun registration</sub>
+    </td>
+  </tr>
+</table>
+</div>
 
-# Umbra (CLI)
+# Install
+To use Umbra, download the appropriate `.zip` file for your operating system from the [latest release](https://github.com/LudoRey/umbra/releases/latest). Inside the extracted folder, you will find the executable. **Do not move the executable out of the folder**. If you want to have a standalone file on your desktop, create a shortcut.
+
+Note: some antivirus software may flag the executable as a false positive; if this happens, add it to your antivirus exclusion list.
+
+# Quick start
+
+The only feature available as of now is image registration. 
+
+Before using Umbra for image registration, you must convert your (debayered) images to FITS format, and place them in a single folder. **Do not organize your images into subfolders**.
+
+
+1. Open the folder containing your FITS images
+<video src="docs/assets/quick_start/select_folder.mkv" width="320" height="240" controls></video>
+2. Select a **reference image** and one (or more) **anchor images**. 
+<video src="docs/assets/quick_start/select_reference_and_anchor.mkv" width="320" height="240" controls></video>
+3. Set your image scale.
+4. Click on run!
+<video src="docs/assets/quick_start/image_scale_and_run.mkv" width="320" height="240" controls></video>
+
+# CLI (Advanced)
 
 The source code is available if you want to run the scripts without using the GUI.
 
