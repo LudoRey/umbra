@@ -1,18 +1,12 @@
 Umbra: Total Solar Eclipse Image Processing Software
 ==============
 
-<table>
-  <tr>
-    <td align="center">
-      <img src="docs/assets/moon_registration.gif" alt="Moon registration"/><br/>
-      <em>Moon registration</em>
-    </td>
-    <td align="center">
-      <img src="docs/assets/sun_registration.gif" alt="Sun registration"/><br/>
-      <em>Sun registration</em>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <img src="docs/assets/moon_registration.gif" alt="Moon registration" width="45%"/>
+  <img src="docs/assets/sun_registration.gif" alt="Sun registration" width="45%"/>
+  <br/>
+  <sub><em>Images provided by @astro_uri on Instagram</em></sub>
+</p>
 
 # Install
 To use Umbra, download the appropriate `.zip` file for your operating system from the [latest release](https://github.com/LudoRey/umbra/releases/latest). Inside the extracted folder, you will find the executable. **Do not move the executable out of the folder**. If you want to have a standalone file on your desktop, create a shortcut.
