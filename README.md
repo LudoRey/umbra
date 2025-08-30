@@ -1,16 +1,17 @@
-<div align="center">
-<table>
-  <tr>
-    <td align="center">
-      <img src="docs/assets/moon_registration.gif" width="300"/><br/>
-      Moon registration
-    </td>
-    <td align="center">
-      <img src="docs/assets/sun_registration.gif" width="300"/><br/>
-      Sun registration
-    </td>
-  </tr>
-</table>
+<div style="display: flex; justify-content: center;">
+
+  <div style="text-align: center;">
+    <img src="docs/assets/moon_registration.gif" alt="Animated moon registration demo" width="90%"/>
+    <br/>
+    <em>Moon registration</em>
+  </div>
+
+  <div style="text-align: center;">
+    <img src="docs/assets/sun_registration.gif" alt="Animated sun registration demo" width="90%"/>
+    <br/>
+    <em>Sun registration</em>
+  </div>
+
 </div>
 
 # Install
@@ -27,16 +28,18 @@ The software should be self-explanatory : you can hover over almost any element 
 Before using Umbra for image registration, you must convert your (debayered) images to FITS format, and place them in a single folder. **Do not organize your images into subfolders**.
 
 
-1. Open the folder containing your FITS images
-<img src="docs/assets/quick_start/open_folder.gif" width="720">
-2. Select a **reference image** and **anchor image(s)**. Hover over the reference/anchor icons to see tips on how to make your selection.
-<img src="docs/assets/quick_start/select_reference_and_anchor.gif" width="720">
+1. Open the folder containing your FITS images.
+<img src="docs/assets/quick_start/open_folder.gif" width="100%">
+2. Select a reference <img src="docs/assets/quick_start/target.png" style="height:0.75em;"> and an anchor <img src="docs/assets/quick_start/anchor.png" style="height:0.75em;">. Hover over the fileviewer header icons to see tips on how to make your selection.
+<img src="docs/assets/quick_start/select_reference_and_anchor.gif" width="100%">
 3. Set your image scale and click on start.
-<img src="docs/assets/quick_start/set_image_scale_and_run.gif" width="720">
+<img src="docs/assets/quick_start/set_image_scale_and_run.gif" width="100%">
+
+The registered images are saved in the folders specified by the options "Moon-registered folder" and "Sun-registered folder". By default, they are located in the parent folder of the input folder.
 
 # CLI (Advanced)
 
-The source code is available if you want to run the scripts without using the GUI.
+The source code for the algorithms is available if you want to run the scripts without using the GUI.
 
 ## Requirements
 
