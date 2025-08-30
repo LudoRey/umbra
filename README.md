@@ -30,8 +30,10 @@ Before using Umbra for image registration, you must convert your (debayered) ima
 
 1. Open the folder containing your FITS images.
 <img src="docs/assets/quick_start/open_folder.gif" width="100%">
+
 2. Select a reference <img src="docs/assets/quick_start/target.png" height="16px"> and an anchor <img src="docs/assets/quick_start/anchor.png" height="16px">. Hover over the fileviewer header icons to see tips on how to make your selection.
 <img src="docs/assets/quick_start/select_reference_and_anchor.gif" width="100%">
+
 3. Set your image scale and click on start.
 <img src="docs/assets/quick_start/set_image_scale_and_run.gif" width="100%">
 
