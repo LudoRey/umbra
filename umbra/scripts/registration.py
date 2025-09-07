@@ -1,14 +1,11 @@
-if __name__ == "__main__":
-    from _import import add_project_root_to_path
-    add_project_root_to_path()
-
 import os
 import numpy as np
 from datetime import datetime
 import scipy.interpolate
 
-from core.lib import registration, fits, interpolation, transform
-from core.lib.utils import cprint
+from umbra import registration
+from umbra.common import transform, interpolation, fits
+from umbra.common.utils import cprint
 
 def main(
     # IO
@@ -134,7 +131,7 @@ def main(
 
 if __name__ == "__main__":
     import sys
-    from core.lib.utils import ColorTerminalStream
+    from umbra.common.utils import ColorTerminalStream
     sys.stdout = ColorTerminalStream()
 
     # User-specific settings (change as needed!)

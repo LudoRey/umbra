@@ -1,7 +1,7 @@
 from matplotlib import pyplot as plt
 import numpy as np
-from lib.fits import read_fits_as_float, get_grouped_filepaths, ht_lut, Timer
-from lib.integration import read_stack
+from umbra.common.fits import read_fits_as_float, get_grouped_filepaths, ht_lut, Timer
+from umbra.integration.integration import read_stack
 from astropy.stats import sigma_clip
 from parameters import MOON_REGISTERED_DIR, SUN_REGISTERED_DIR
 from parameters import GROUP_KEYWORDS

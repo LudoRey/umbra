@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-from lib.fits import read_fits_as_float, save_as_fits, get_grouped_filepaths, read_fits_header, extract_subheader
+from umbra.common.fits import read_fits_as_float, save_as_fits, get_grouped_filepaths, read_fits_header, extract_subheader
 from parameters import MOON_REGISTERED_DIR, MOON_STACKS_DIR
 from parameters import GROUP_KEYWORDS
 

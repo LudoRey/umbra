@@ -2,9 +2,9 @@ import numpy as np
 import cv2
 import skimage as sk
 
-from core.lib import display, disk, filters, transform, optim
-from core.lib.utils import cprint
-from core.lib.registration import registration
+from umbra.common import display, disk, filters, transform
+from umbra.common.utils import cprint
+from umbra.registration import objective, optim
 
 def preprocess(img, moon_center, moon_radius, sigma_high_pass_tangential, *, img_callback, checkstate):
     '''
@@ -70,14 +70,14 @@ def compute_transform(ref_img, img, ref_mass_center, max_iter, error_overlay_opa
     # Initialize transform parameters
     cprint("Initializing transform:", style='bold')
     print("Computing correlation peak...", end=" ", flush=True)
-    tx, ty = registration.correlation_peak(img, ref_img) # translation ref_img -> img
+    tx, ty = objective.correlation_peak(img, ref_img) # translation ref_img -> img
     theta = 0
     print(f"({tx}, {ty})")
     print(f"Using center of mass as center of rotation: ({ref_mass_center[0]:.2f}, {ref_mass_center[1]:.2f})")
     
     # Optimize transform parameters
     cprint("Optimizing transform:", style='bold')
-    obj = registration.RigidRegistrationObjective(ref_img, img, ref_mass_center, theta_factor=180/np.pi)
+    obj = objective.RigidRegistrationObjective(ref_img, img, ref_mass_center, theta_factor=180/np.pi)
     delta_max = 1
     delta_min = np.array([1e-4, 1e-3, 1e-3]) # want more precision on the angle
 

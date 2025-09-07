@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 
-from core.lib import transform
+from umbra.common import transform
 
 border_mode_dict = {
     'constant': cv2.BORDER_CONSTANT,

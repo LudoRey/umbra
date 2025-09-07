@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Callable
-from core.lib.utils import cprint
+from umbra.common.utils import cprint
 
 
 def get_descent_direction(g, H=None):

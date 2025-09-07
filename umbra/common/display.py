@@ -1,6 +1,6 @@
 import numpy as np
 from astropy.io import fits
-from core.lib.pyx.lut import apply_lut_rgb, apply_lut_grayscale
+from umbra.common.pyx.lut import apply_lut_rgb, apply_lut_grayscale
 
 def combine_red_green(img1, img2):
     img = np.zeros((img1.shape[0], img1.shape[1], 3))

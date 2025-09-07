@@ -1,15 +1,15 @@
 import os
 import numpy as np
 
-from lib.fits import remove_pedestal, read_fits_as_float, save_as_fits, extract_subheader, get_grouped_filepaths, read_fits_header
+from umbra.common.fits import remove_pedestal, read_fits_as_float, save_as_fits, extract_subheader, get_grouped_filepaths, read_fits_header
 from parameters import MOON_RADIUS_DEGREE
 from parameters import IMAGE_SCALE
 from parameters import SUN_HDR_DIR, SUN_STACKS_DIR, MOON_REGISTERED_DIR
 from parameters import GROUP_KEYWORDS
 
-from lib.disk import binary_disk
-from lib.hdr import saturation_weighting, equalize_brightness, compute_scaling_factor
-from lib.polar import angle_map
+from umbra.common.disk import binary_disk
+from umbra.hdr.hdr import saturation_weighting, equalize_brightness, compute_scaling_factor
+from umbra.common.polar import angle_map
 
 LOW_CLIPPING_THRESHOLD = 0.005
 LOW_SMOOTHNESS = 0.001

@@ -1,11 +1,11 @@
 import os
 import numpy as np
 
-from lib.fits import remove_pedestal, read_fits_as_float, save_as_fits, extract_subheader, read_fits_header, get_grouped_filepaths
+from umbra.common.fits import remove_pedestal, read_fits_as_float, save_as_fits, extract_subheader, read_fits_header, get_grouped_filepaths
 from parameters import MOON_HDR_DIR, MOON_STACKS_DIR
 from parameters import GROUP_KEYWORDS
 
-from lib.hdr import saturation_weighting, compute_scaling_factor
+from umbra.hdr.hdr import saturation_weighting, compute_scaling_factor
 
 LOW_CLIPPING_THRESHOLD = 0.005
 LOW_SMOOTHNESS = 0.001

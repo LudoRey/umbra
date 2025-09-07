@@ -1,5 +1,5 @@
 import numpy as np
-from core.lib import fits
+from umbra.common import fits
 
 
 def read_stack(filepaths, rows_range=None):

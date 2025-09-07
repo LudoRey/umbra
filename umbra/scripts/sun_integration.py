@@ -1,8 +1,8 @@
 import os
 import numpy as np
 
-from lib.disk import linear_falloff_disk
-from lib.fits import read_fits_as_float, save_as_fits, extract_subheader, read_fits_header, get_grouped_filepaths
+from umbra.common.disk import linear_falloff_disk
+from umbra.common.fits import read_fits_as_float, save_as_fits, extract_subheader, read_fits_header, get_grouped_filepaths
 from parameters import MOON_RADIUS_DEGREE
 from parameters import IMAGE_SCALE
 from parameters import SUN_REGISTERED_DIR, SUN_STACKS_DIR

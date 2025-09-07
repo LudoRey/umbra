@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 from skimage.transform import warp_polar
 from scipy.ndimage import gaussian_filter
 
-from lib.display import crop, center_crop, ht
-from lib.fits import read_fits_as_float, save_as_fits
-from lib.polar import angle_map, radius_map, coords_cart_to_polar, coords_polar_to_cart, warp_cart_to_polar, warp_polar_to_cart
-from lib.filters import achf, radial_tangential, partial_filter
+from umbra.common.display import crop, center_crop, ht
+from umbra.common.fits import read_fits_as_float, save_as_fits
+from umbra.common.polar import angle_map, radius_map, coords_cart_to_polar, coords_polar_to_cart, warp_cart_to_polar, warp_polar_to_cart
+from umbra.common.filters import achf, radial_tangential, partial_filter
 
 # def uniform_grid_points(shape, d):
 #     x, y = np.arange(shape[1]), np.arange(shape[0])
