@@ -16,17 +16,17 @@ def main(
     sun_registered_dir,
     # Moon detection
     image_scale,
-    clipped_factor=1.3,
-    edge_factor=1.0,
+    clipped_factor,
+    edge_factor,
     # Sun registration
-    sigma_high_pass_tangential=4.0, 
-    max_iter=10,
+    sigma_high_pass_tangential,
+    max_iter,
     # GUI interactions
-    error_overlay_opacity=0.75,
+    error_overlay_opacity,
     *, 
     img_callback=lambda img: None,
     checkstate=lambda: None
-    ):
+):
     # Upper bound on the moon radius (coarse estimate used for threshold)
     moon_radius_pixels = 0.279 * 3600 / image_scale
     # Because of brightness variations, the multiplier should be large enough so that a complete annulus is clipped
@@ -131,30 +131,11 @@ def main(
 
 if __name__ == "__main__":
     import sys
+    import yaml
     from umbra.common.utils import ColorTerminalStream
     sys.stdout = ColorTerminalStream()
 
-    # User-specific settings (change as needed!)
-    input_dir = "path/to/your/input_dir"
-    ref_filename = "your_reference_image.fits"
-    anchor_filenames = ["your_anchor_image1.fits", "your_anchor_image2.fits"]
-    moon_registered_dir = "path/to/your/moon_registered_dir"
-    sun_registered_dir = "path/to/your/sun_registered_dir"
-    image_scale = 1.0
+    with open("config.yaml") as f:
+        config = yaml.safe_load(f)
 
-    # Additional settings
-    clipped_factor = 1.3
-    edge_factor = 1.0
-    sigma_high_pass_tangential = 4.0
-    max_iter = 10
-
-    main(input_dir,
-         ref_filename,
-         anchor_filenames,
-         moon_registered_dir,
-         sun_registered_dir,
-         image_scale,
-         clipped_factor,
-         edge_factor,
-         sigma_high_pass_tangential,
-         max_iter)
+    main(**config["registration"])

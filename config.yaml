@@ -1,0 +1,57 @@
+# Some parameters are shared among different steps, so we use YAML anchors and references to avoid duplication.
+# Syntax : &anchor_name value  (define an anchor)
+#          *anchor_name       (reference an anchor)
+
+registration:
+  input_dir: 'D:\astro\2024.04.09 Eclipse\fits'
+  ref_filename: '0.25000s_2024-04-09_02h42m31s.fits'
+  anchor_filenames: ['0.25000s_2024-04-09_02h40m33s.fits']
+  moon_registered_dir: &moon_registered_dir 'D:\astro\2024.04.09 Eclipse\moon_registered'
+  sun_registered_dir: &sun_registered_dir 'D:\astro\2024.04.09 Eclipse\sun_registered'
+  image_scale: &image_scale 5.89
+  clipped_factor: 1.3
+  edge_factor: 1.0
+  sigma_high_pass_tangential: 4.0
+  max_iter: 10
+  error_overlay_opacity: 0.75
+
+moon_integration:
+  moon_registered_dir: *moon_registered_dir
+  moon_stacks_dir: &moon_stacks_dir 'D:\astro\2024.04.09 Eclipse\moon_stacks'
+  group_keywords: &group_keywords ["EXPTIME"]
+
+sun_integration:
+  sun_registered_dir: *sun_registered_dir
+  sun_stacks_dir: &sun_stacks_dir 'D:\astro\2024.04.09 Eclipse\sun_stacks'
+  group_keywords: *group_keywords
+  image_scale: *image_scale
+  extra_radius_pixels: 2
+  smoothness: 10.0
+
+moon_hdr_composition:
+  moon_stacks_dir: *moon_stacks_dir
+  moon_hdr_dir: &moon_hdr_dir 'D:\astro\2024.04.09 Eclipse\moon_hdr'
+  group_keywords: *group_keywords
+  low_clipping_threshold: 0.005
+  low_smoothness: 0.001
+  high_clipping_threshold: 0.1 # if exptimes[i+1]/exptimes[i] = k, then we should have high/low << k
+  high_smoothness: 0.01
+
+sun_hdr_composition:
+  sun_stacks_dir: *sun_stacks_dir
+  sun_hdr_dir: &sun_hdr_dir 'D:\astro\2024.04.09 Eclipse\sun_hdr'
+  moon_registered_dir: *moon_registered_dir
+  group_keywords: *group_keywords
+  image_scale: *image_scale
+  extra_radius_pixels: 10
+  low_clipping_threshold: 0.005
+  low_smoothness: 0.001
+  high_clipping_threshold: 0.1 # if exptimes[i+1]/exptimes[i] = k, then we should have high/low << k
+  high_smoothness: 0.01
+
+merge_sun_moon:
+  sun_hdr_dir: *sun_hdr_dir
+  moon_hdr_dir: *moon_hdr_dir
+  merged_hdr_dir: &merged_hdr_dir 'D:\astro\2024.04.09 Eclipse\merged_hdr'
+  sigma: 2
+  moon_threshold: 0.002
