@@ -34,7 +34,7 @@ def main(
     moon_header = read_fits_header(os.path.join(moon_registered_dir, filename))
     moon_mask = binary_disk(moon_header["MOON-X"], moon_header["MOON-Y"], radius=moon_radius_pixels, shape=shape[0:2])
     # Make theta image once and for all
-    img_theta = angle_map(ref_header["SUN-X"], ref_header["SUN-Y"], shape=shape[0:2])
+    img_theta = angle_map(ref_header["MOON-X"], ref_header["MOON-Y"], shape=shape[0:2]) # TODO: SUN-X and SUN-Y
 
     # Read first reference image (the longest exposure)
     group_name = list(grouped_filepaths.keys())[-1]
@@ -85,7 +85,7 @@ def main(
     hdr_img /= sum_weights[:,:,None]
     hdr_img = np.clip(hdr_img, 0, 1)
 
-    output_header = extract_subheader(header_x, ["SUN-X", "SUN-Y"])
+    output_header = extract_subheader(header_x, []) # TODO: SUN-X and SUN-Y for filters
 
     save_as_fits(hdr_img, output_header, os.path.join(sun_hdr_dir, "hdr.fits"), convert_to_uint16=False)
     
