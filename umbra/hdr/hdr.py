@@ -1,5 +1,4 @@
 import numpy as np
-from sklearn.linear_model import LinearRegression
 from scipy import interpolate
 
 def saturation_weighting(img, low, high, low_smoothness, high_smoothness):
@@ -40,10 +39,11 @@ def linear_trigo_fit(x, theta, y, degree):
     # X = np.concatenate([X, penalty_matrix], axis=0)
     # y = np.concatenate([y, np.zeros(num_features)], axis=0)
 
-    reg = LinearRegression(fit_intercept=False).fit(X,y)
+    coeffs = np.linalg.lstsq(X, y, rcond=None)[0] # X @ coeffs ~= y
 
-    offset_trigo_coeffs = reg.coef_[:1+2*degree]
-    slope_trigo_coeffs = reg.coef_[1+2*degree:]
+    offset_trigo_coeffs = coeffs[:1+2*degree]
+    slope_trigo_coeffs = coeffs[1+2*degree:]
+
     return offset_trigo_coeffs, slope_trigo_coeffs
 
 def fast_evaluate_trigonometric_basis(theta, degree, N=10000):
