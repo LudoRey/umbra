@@ -104,10 +104,10 @@ def get_grouped_filepaths(dirname, keywords, output_format="collapsed_dict"):
     # Collapsed dict structure : {"0.25-100": ["a", "b"], "1-100": ["c"], "1-200": ["d"]}
     # Collapsed list structure : [["a", "b"], ["c"], ["d"]]
     nested_dict = {}
-    dirpath, _, filenames = next(os.walk(dirname)) # not going into subfolders
+    filenames = os.listdir(dirname) # not going into subfolders
     for filename in filenames:
-        if filename.endswith('.fits'):
-            filepath = os.path.join(dirpath, filename)
+        if filename.endswith(('.fits', '.fit')):
+            filepath = os.path.join(dirname, filename)
             header = read_fits_header(filepath)
             # Create/access deepest level of nested dict
             sub_dict = nested_dict
