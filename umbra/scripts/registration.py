@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from datetime import datetime
+import dateutil.parser
 import scipy.interpolate
 
 from umbra import registration
@@ -71,7 +71,7 @@ def main(
         sun_tform = transform.centered_rigid_transform(ref_mass_center, theta, (tx,ty)) # ref to anchor
 
         # Update trackers
-        times[i] = (datetime.strptime(header["DATE-OBS"], "%Y-%m-%dT%H:%M:%S") - datetime.strptime(ref_header["DATE-OBS"], "%Y-%m-%dT%H:%M:%S")).total_seconds()
+        times[i] = (dateutil.parser.parse(header["DATE-OBS"]) - dateutil.parser.parse(ref_header["DATE-OBS"])).total_seconds()
         thetas[i] = theta
         sun_moon_translations[i] = registration.sun.compute_sun_moon_translation(sun_tform, moon_tform)
         cprint(f"Reference -> Anchor {i}:", style='bold')
@@ -112,7 +112,7 @@ def main(
         moon_center, moon_radius = registration.moon.detect_moon(processed_img, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
         
         # Interpolate transform parameters
-        time = (datetime.strptime(header["DATE-OBS"], "%Y-%m-%dT%H:%M:%S") - datetime.strptime(ref_header["DATE-OBS"], "%Y-%m-%dT%H:%M:%S")).total_seconds()
+        time = (dateutil.parser.parse(header["DATE-OBS"]) - dateutil.parser.parse(ref_header["DATE-OBS"])).total_seconds()
         theta = theta_interp(time).item() # interp1d's call method always returns an array, even if the input is not one
         sun_moon_translation = sun_moon_translation_interp(time)
 
