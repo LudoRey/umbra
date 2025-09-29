@@ -2,13 +2,25 @@
 # Syntax : &anchor_name value  (define an anchor)
 #          *anchor_name       (reference an anchor)
 
+_shared:
+  input_dir: &input_dir 'path\to\fits'
+  moon_registered_dir: &moon_registered_dir 'path\to\moon_registered'
+  sun_registered_dir: &sun_registered_dir 'path\to\sun_registered'
+  moon_stacks_dir: &moon_stacks_dir 'path\to\moon_stacks'
+  sun_stacks_dir: &sun_stacks_dir 'path\to\sun_stacks'
+  moon_hdr_dir: &moon_hdr_dir 'path\to\moon_hdr'
+  sun_hdr_dir: &sun_hdr_dir 'path\to\sun_hdr'
+  merged_hdr_dir: &merged_hdr_dir 'path\to\merged_hdr'
+  group_keywords: &group_keywords ["EXPTIME"]
+  image_scale: &image_scale 1.00
+
 registration:
-  input_dir: 'D:\astro\2024.04.09 Eclipse\fits'
-  ref_filename: '0.25000s_2024-04-09_02h42m31s.fits'
-  anchor_filenames: ['0.25000s_2024-04-09_02h40m33s.fits']
-  moon_registered_dir: &moon_registered_dir 'D:\astro\2024.04.09 Eclipse\moon_registered'
-  sun_registered_dir: &sun_registered_dir 'D:\astro\2024.04.09 Eclipse\sun_registered'
-  image_scale: &image_scale 5.89
+  input_dir: *input_dir
+  ref_filename: 'path\to\reference_image.fits'
+  anchor_filenames: ['path\to\anchor_image.fits']
+  moon_registered_dir: *moon_registered_dir
+  sun_registered_dir: *sun_registered_dir
+  image_scale: *image_scale
   clipped_factor: 1.3
   edge_factor: 1.0
   sigma_high_pass_tangential: 4.0
@@ -17,12 +29,12 @@ registration:
 
 moon_integration:
   moon_registered_dir: *moon_registered_dir
-  moon_stacks_dir: &moon_stacks_dir 'D:\astro\2024.04.09 Eclipse\moon_stacks'
-  group_keywords: &group_keywords ["EXPTIME"]
+  moon_stacks_dir: *moon_stacks_dir
+  group_keywords: *group_keywords
 
 sun_integration:
   sun_registered_dir: *sun_registered_dir
-  sun_stacks_dir: &sun_stacks_dir 'D:\astro\2024.04.09 Eclipse\sun_stacks'
+  sun_stacks_dir: *sun_stacks_dir
   group_keywords: *group_keywords
   image_scale: *image_scale
   extra_radius_pixels: 2
@@ -30,7 +42,7 @@ sun_integration:
 
 moon_hdr_composition:
   moon_stacks_dir: *moon_stacks_dir
-  moon_hdr_dir: &moon_hdr_dir 'D:\astro\2024.04.09 Eclipse\moon_hdr'
+  moon_hdr_dir: *moon_hdr_dir
   group_keywords: *group_keywords
   low_clipping_threshold: 0.005
   low_smoothness: 0.001
@@ -39,7 +51,7 @@ moon_hdr_composition:
 
 sun_hdr_composition:
   sun_stacks_dir: *sun_stacks_dir
-  sun_hdr_dir: &sun_hdr_dir 'D:\astro\2024.04.09 Eclipse\sun_hdr'
+  sun_hdr_dir: *sun_hdr_dir
   moon_registered_dir: *moon_registered_dir
   group_keywords: *group_keywords
   image_scale: *image_scale
@@ -52,6 +64,6 @@ sun_hdr_composition:
 merge_sun_moon:
   sun_hdr_dir: *sun_hdr_dir
   moon_hdr_dir: *moon_hdr_dir
-  merged_hdr_dir: &merged_hdr_dir 'D:\astro\2024.04.09 Eclipse\merged_hdr'
+  merged_hdr_dir: *merged_hdr_dir
   sigma: 2
   moon_threshold: 0.002
