@@ -27,6 +27,17 @@ registration:
   max_iter: 10
   error_overlay_opacity: 0.75
 
+integration:
+  moon_registered_dir: *moon_registered_dir
+  sun_registered_dir: *sun_registered_dir
+  moon_stacks_dir: *moon_stacks_dir
+  sun_stacks_dir: *sun_stacks_dir
+  group_keywords: *group_keywords
+  image_scale: *image_scale
+  rejection_threshold: 10
+  extra_radius_pixels: 2
+  smoothness: 10.0
+
 moon_integration:
   moon_registered_dir: *moon_registered_dir
   moon_stacks_dir: *moon_stacks_dir

@@ -27,7 +27,8 @@ def read_fits_as_float(filepath, rows_range=None, verbose=True, *, checkstate=la
             img = hdul[0].data[:,rows_range[0]:rows_range[1]]
     # Type checking and float conversion
     if np.issubdtype(img.dtype, np.uint16): 
-        img = img.astype(np.float64) / 65535
+        img = img.astype(np.float64)
+        img /= 65535
     elif np.issubdtype(img.dtype, np.floating):
         img = img.astype(np.float64)
     else:
