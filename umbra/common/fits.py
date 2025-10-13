@@ -5,7 +5,7 @@ from umbra.common.utils import cprint
 
 def read_fits(filepath, verbose=True):
     if verbose:
-        cprint(f"Opening {filepath}...", color="green")
+        cprint(f"Opening {filepath}...", color="cyan")
     # Open image/header
     with astropy.io.fits.open(filepath) as hdul:
         header = hdul[0].header
@@ -101,7 +101,7 @@ def get_grouped_filepaths(dirname, keywords, output_format="collapsed_dict"):
     # Example : keywords = ["EXPTIME", "ISOSPEED"]
     # Output format options {"nested_dict", "collapsed_dict", "collapsed_list"}
     # Nested dict structure : {"0.25": {"100": ["a", "b"]}, "1": {"100": ["c"], "200": ["d"]}}
-    # Collapsed dict structure : {"0.25-100": ["a", "b"], "1-100": ["c"], "1-200": ["d"]}
+    # Collapsed dict structure : {("0.25","100"): ["a", "b"], ("1","100"): ["c"], ("1","200"): ["d"]}
     # Collapsed list structure : [["a", "b"], ["c"], ["d"]]
     nested_dict = {}
     filenames = os.listdir(dirname) # not going into subfolders
@@ -126,7 +126,7 @@ def get_grouped_filepaths(dirname, keywords, output_format="collapsed_dict"):
     # Sort nested dict
     nested_dict = sort_nested_dict(nested_dict)
     # Collapse dict
-    collapsed_dict = collapse_nested_dict(nested_dict, keywords)
+    collapsed_dict = collapse_nested_dict(nested_dict)
     if output_format == "nested_dict":
         return nested_dict
     if output_format == "collapsed_dict":
@@ -148,16 +148,29 @@ def sort_nested_dict(nested_dict, cvt_key_to_float=False):
     nested_dict = dict(sorted(nested_dict.items(), key=keymap))
     return nested_dict
 
-def collapse_nested_dict(nested_dict, keywords):
+def collapse_nested_dict(nested_dict):
+    # We cant use lists as keys since they are not hashable, so we use tuples instead
     collapsed_dict = {}
     for key in nested_dict.keys():
         if isinstance(nested_dict[key], dict):
-            collapsed_subdict = collapse_nested_dict(nested_dict[key], keywords[1:])
+            collapsed_subdict = collapse_nested_dict(nested_dict[key])
             for subkey in collapsed_subdict.keys():
-                collapsed_dict[(key,)+subkey] = collapsed_subdict[subkey]
+                collapsed_dict[(key,)+subkey] = collapsed_subdict[subkey] 
         else: # in that case, nested_dict is a regular dict and only the keys need to be formatted
             collapsed_dict[(key,)] = nested_dict[key]
     return collapsed_dict
+
+def format_keyword(keyword):
+    if keyword == "EXPTIME":
+        return "Exposure"
+    elif keyword == "ISOSPEED":
+        return "ISO"
+    elif keyword == "GAIN":
+        return "Gain"
+    elif keyword == "DATE-OBS":
+        return "Timestamp"
+    else:
+        return keyword
 
 def format_keyword_value(keyword_value, keyword):
     if keyword == "EXPTIME":
