@@ -27,10 +27,10 @@ def read_fits_as_float(filepath, rows_range=None, verbose=True, *, checkstate=la
             img = hdul[0].data[:,rows_range[0]:rows_range[1]]
     # Type checking and float conversion
     if np.issubdtype(img.dtype, np.uint16): 
-        img = img.astype(np.float64)
+        img = img.astype(np.float32)
         img /= 65535
     elif np.issubdtype(img.dtype, np.floating):
-        img = img.astype(np.float64)
+        img = img.astype(np.float32)
     else:
         raise TypeError(f"FITS image format must be either 16-bit unsigned integer, or floating point.")
     # If color image : CxHxW -> HxWxC
@@ -50,9 +50,14 @@ def remove_pedestal(img, header):
 def save_as_fits(img, header, filepath, convert_to_uint16=True, verbose=True, *, checkstate=lambda: None):
     if verbose:
         cprint(f"Saving as {filepath}...", color="cyan")
+    if np.issubdtype(img.dtype, np.uint16):
+        pass
+    elif np.issubdtype(img.dtype, np.floating):
+        if convert_to_uint16:
+            img = (np.clip(img, 0, 1)*65535).astype('uint16')
+    else:
+        raise TypeError(f"FITS image format must be either 16-bit unsigned integer, or floating point.")
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    if convert_to_uint16:
-        img = (np.clip(img, 0, 1)*65535).astype('uint16')
     if len(img.shape) == 3:
         img = np.moveaxis(img, 2, 0)
     hdu = astropy.io.fits.PrimaryHDU(data=img, header=header)
