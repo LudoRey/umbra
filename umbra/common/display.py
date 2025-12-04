@@ -47,6 +47,8 @@ def generate_ht_lut(m, vmin, vmax, bits=16):
 
 def ht_lut(x, m, vmin=None, vmax=None, bits=16):
     '''Returns an 8-bit image.'''
+    if np.any(np.isnan(x)):
+        raise ValueError("ht_lut does not support NaN values in input image.")
     lut = generate_ht_lut(m, vmin, vmax, bits)
     if x.ndim == 3:
         x = apply_lut_rgb(x, lut) 
