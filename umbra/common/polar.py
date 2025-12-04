@@ -9,7 +9,8 @@ def angle_map(x_c, y_c, shape):
     return theta
 
 def radius_map(x_c, y_c, shape):
-    x, y = np.arange(shape[1]), np.arange(shape[0])
-    X, Y = np.meshgrid(x, y)
-    rho = np.sqrt((X-x_c)**2 + (Y-y_c)**2)
+    y = np.arange(shape[0], dtype=np.float32)
+    x = np.arange(shape[1], dtype=np.float32)
+    # Use broadcasting instead of meshgrid
+    rho = np.sqrt((y[:, None] - y_c) ** 2 + (x[None, :] - x_c) ** 2)
     return rho
