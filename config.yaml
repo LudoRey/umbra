@@ -34,7 +34,7 @@ integration:
   sun_stacks_dir: *sun_stacks_dir
   group_keywords: *group_keywords
   image_scale: *image_scale
-  rejection_threshold: 10
+  rejection_threshold: 3
   extra_radius_pixels: 2
   smoothness: 10.0
 
