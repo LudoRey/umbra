@@ -5,7 +5,7 @@ import scipy.interpolate
 
 from umbra import registration
 from umbra.common import transform, interpolation, fits
-from umbra.common.utils import cprint
+from umbra.common.terminal import cprint
 
 def main(
     # IO
@@ -132,7 +132,7 @@ def main(
 if __name__ == "__main__":
     import sys
     import yaml
-    from umbra.common.utils import ColorTerminalStream
+    from umbra.common.terminal import ColorTerminalStream
     sys.stdout = ColorTerminalStream()
 
     with open("config.yaml") as f:

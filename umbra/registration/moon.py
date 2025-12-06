@@ -3,7 +3,7 @@ import skimage as sk
 import cv2
 import warnings
 
-from umbra.common.utils import cprint
+from umbra.common.terminal import cprint
 
 def preprocess(img, num_clipped_pixels, *, checkstate, img_callback):
     cprint("Preprocessing:", style='bold')

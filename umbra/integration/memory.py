@@ -1,23 +1,7 @@
-import tracemalloc
 import numpy as np
-import contextlib
 import psutil
 
-from umbra.common.utils import cprint
-
-def print_memory_usage():
-    current, peak = tracemalloc.get_traced_memory()
-    cprint(f"Current memory usage: {current / 1000000:.2f} MB")
-    cprint(f"Peak memory usage: {peak / 1000000:.2f} MB")
-
-@contextlib.contextmanager
-def memory_tracker():
-    tracemalloc.start()
-    try:
-        yield
-    finally:
-        print_memory_usage()
-        tracemalloc.stop()
+from umbra.common.terminal import cprint
 
 def compute_stack_memory_requirements(num_images, shape, dtype=np.float32):
     return num_images * np.prod(shape) * (np.dtype(dtype).itemsize + 1) # boolean mask is 1 byte

@@ -4,7 +4,7 @@ import numpy as np
 import tracemalloc
 
 from umbra.common import fits
-from umbra.common.utils import cprint
+from umbra.common.terminal import cprint
 from umbra import integration
 
 def main(
@@ -83,7 +83,7 @@ def main(
 if __name__ == "__main__":
     import sys
     import yaml
-    from umbra.common.utils import ColorTerminalStream
+    from umbra.common.terminal import ColorTerminalStream
     sys.stdout = ColorTerminalStream()
 
     with open("config_custom.yaml") as f:

@@ -1,20 +1,5 @@
-import time
 import io
 import sys
-
-class Timer:
-    def __init__(self, text=None):
-        self.text = text 
-
-    def __enter__(self):
-        self.start_time = time.perf_counter() 
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.end_time = time.perf_counter() 
-        elapsed_time = self.end_time - self.start_time
-        text = "Elapsed time" if self.text is None else self.text
-        print(f"{text}: {elapsed_time:.2f} seconds")
 
 class ColorTerminalStream(io.TextIOWrapper):
     def __init__(self, **kwargs):

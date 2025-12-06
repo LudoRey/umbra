@@ -73,7 +73,7 @@ def main(
 if __name__ == "__main__":
     import sys
     import yaml
-    from umbra.common.utils import ColorTerminalStream
+    from umbra.common.terminal import ColorTerminalStream
     sys.stdout = ColorTerminalStream()
 
     with open("config.yaml") as f:

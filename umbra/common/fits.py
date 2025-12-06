@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import astropy.io.fits
-from umbra.common.utils import cprint
+from umbra.common.terminal import cprint
 
 def read_fits(filepath, verbose=True):
     if verbose:

@@ -1,6 +1,6 @@
 import numpy as np
 from umbra.common import fits
-from umbra.common.utils import cprint
+from umbra.common.terminal import cprint
 
 
 def read_stack(filepaths, rows_range=None):

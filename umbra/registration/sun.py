@@ -3,7 +3,7 @@ import cv2
 import skimage as sk
 
 from umbra.common import display, disk, filters, transform
-from umbra.common.utils import cprint
+from umbra.common.terminal import cprint
 from umbra.registration import objective, optim
 
 def preprocess(img, moon_center, moon_radius, sigma_high_pass_tangential, *, img_callback, checkstate):

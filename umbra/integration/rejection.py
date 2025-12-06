@@ -2,7 +2,7 @@ import astropy.stats
 import numpy as np
 
 from umbra.common import disk, polar
-from umbra.common.utils import cprint
+from umbra.common.terminal import cprint
 from umbra.integration import memory
 
 def outlier_rejection(
