@@ -32,7 +32,7 @@ def main(
     # Make moon mask (but it is ambiguous; here we arbitrarily take the moon position from the reference image, which can be found in the header of any moon-aligned image)
     filename = [fname for fname in os.listdir(moon_registered_dir)][0]
     moon_header = read_fits_header(os.path.join(moon_registered_dir, filename))
-    moon_mask = binary_disk(moon_header["MOON-X"], moon_header["MOON-Y"], radius=moon_radius_pixels, shape=shape[0:2])
+    moon_mask = binary_disk((moon_header["MOON-X"], moon_header["MOON-Y"]), radius=moon_radius_pixels, shape=shape[0:2])
     # Make theta image once and for all
     img_theta = angle_map(ref_header["MOON-X"], ref_header["MOON-Y"], shape=shape[0:2]) # TODO: SUN-X and SUN-Y
 

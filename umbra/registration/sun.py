@@ -30,14 +30,14 @@ def preprocess(img, moon_center, moon_radius, sigma_high_pass_tangential, *, img
 
 def get_clipping_value(img, moon_center, moon_radius):
     # Find clipping value that surrounds the 1.05R moon mask
-    moon_mask = disk.binary_disk(*moon_center, moon_radius*1.05, img.shape)
+    moon_mask = disk.binary_disk(moon_center, moon_radius*1.05, img.shape)
     moon_mask_border = sk.morphology.binary_dilation(moon_mask) & ~moon_mask
     clipping_value = np.min(img[moon_mask_border]) # Possible bug : dead pixels
     return clipping_value
 
 def hide_moon(img, moon_center, moon_radius):
     # Mask the moon and its surroundings 
-    moon_mask = disk.binary_disk(*moon_center, moon_radius*1.05, img.shape)
+    moon_mask = disk.binary_disk(moon_center, moon_radius*1.05, img.shape)
     moon_mask_border = sk.morphology.binary_dilation(moon_mask) & ~moon_mask
     clipping_value = np.min(img[moon_mask_border]) # Possible bug : dead pixels
     clipping_mask = img >= clipping_value # should surround the moon_mask
