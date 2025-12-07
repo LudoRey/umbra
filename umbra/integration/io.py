@@ -1,8 +1,8 @@
 import numpy as np
-from umbra.common import fits
+from umbra.common import fits, trackers
 from umbra.common.terminal import cprint
 
-
+@trackers.track_info
 def read_stack(filepaths, rows_range=None):
     N = len(filepaths)
     header = fits.read_fits_header(filepaths[0])
@@ -17,5 +17,4 @@ def read_stack(filepaths, rows_range=None):
         cprint(f"Loading image {i+1}/{N}...", end='\r', flush=True)
         stack[i], header = fits.read_fits_as_float(filepaths[i], rows_range, verbose=False)
         headers.append(header)
-    print()
     return stack, headers

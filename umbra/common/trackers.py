@@ -74,9 +74,9 @@ def track_tracemalloc_memory(f):
     def wrapper(*args, **kwargs):
         tracemalloc.start()
         result = f(*args, **kwargs)
-        current, peak = tracemalloc.get_traced_memory()
-        cprint(f"Current memory usage: {current / 1000000:.2f} MB", color="yellow")
-        cprint(f"Peak memory usage   : {peak / 1000000:.2f} MB", color="yellow")
+        exit, peak = tracemalloc.get_traced_memory()
+        cprint(f"Exit memory delta: {exit / 1000000:.2f} MB", color="yellow")
+        cprint(f"Peak memory delta: {peak / 1000000:.2f} MB", color="yellow")
         tracemalloc.stop()
         return result
     return wrapper
