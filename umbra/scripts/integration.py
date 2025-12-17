@@ -2,7 +2,7 @@ import gc
 import os
 import numpy as np
 
-from umbra.common import fits, trackers, coords
+from umbra.common import fits, trackers, coords, display
 from umbra.common.terminal import cprint
 from umbra import integration
 
@@ -23,7 +23,7 @@ def main(
     for group_idx, group_values in enumerate(grouped_filepaths.keys(), start=1):
         # Extract info about the group
         filepaths = grouped_filepaths[group_values]
-        # filepaths = filepaths[::3]
+        filepaths = [filepaths[0], filepaths[-1]]
         num_images = len(filepaths)
         header = fits.read_fits_header(filepaths[0])
         shape = (header["NAXIS2"], header["NAXIS1"], header["NAXIS3"]) # (H, W, C)
@@ -49,11 +49,14 @@ def main(
             region = coords.Region(width=shape[1], height=rows_range[1]-rows_range[0], left=0, top=rows_range[0])
             stack, headers = integration.io.read_stack(filepaths, rows_range)
             # Pixel rejection
-            stack = integration.rejection.moon_rejection(stack, headers, extra_radius_pixels, region)
-            # stack = integration.rejection.outlier_rejection(stack, outlier_threshold)
+            stack, weights = integration.rejection.moon_rejection(stack, headers, extra_radius_pixels, smoothness, region)
+            # stack, mask = integration.rejection.outlier_rejection(stack, outlier_threshold)
+            # weights[mask] = 0
+            mask = weights == 0
+            stack[mask] = 0
             # Update output arrays
-            img[rows_range[0]:rows_range[1]] = integration.reduce.average_ignore_nan(stack)
-            rejection_map[rows_range[0]:rows_range[1]] = integration.rejection.compute_rejection_map(stack)
+            img[rows_range[0]:rows_range[1]] = integration.reduce.weighted_average(stack, weights)
+            rejection_map[rows_range[0]:rows_range[1]] = np.sum(weights, axis=0) / num_images
             # Free memory
             del stack
             gc.collect()
@@ -63,7 +66,7 @@ def main(
         fits.save_as_fits(img, output_header, os.path.join(sun_stacks_dir, f"{group_name}.fits"))
         fits.save_as_fits(rejection_map, None, os.path.join(sun_stacks_dir, f"{group_name}_rejection.fits"))
 
-    return img, rejection_map
+        return img, rejection_map
 
 
 if __name__ == "__main__":

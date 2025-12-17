@@ -3,6 +3,7 @@ import bottleneck as bn
 from umbra.common import trackers
 from umbra.common.terminal import cprint
 
+@trackers.track_info
 def weighted_average(
     stack: np.ndarray,
     weights: np.ndarray
@@ -15,14 +16,14 @@ def weighted_average(
     stack : np.ndarray
         Array of shape (N, H, W, C) representing the stack of images.
     weights : np.ndarray
-        Array of shape (N, H, W, C) representing the weights for each pixel in the stack.
+        Array of shape (N, H, W) representing the weights for each pixel in the stack.
 
     Returns
     -------
     np.ndarray
         Array of shape (H, W, C) representing the weighted average image.
     """
-    weighted_sum = np.sum(stack * weights, axis=0)
+    weighted_sum = np.einsum('nhwc,nhwc->hwc', stack, weights)
     sum_of_weights = np.sum(weights, axis=0)
     return weighted_sum / sum_of_weights
 

@@ -43,13 +43,14 @@ def outlier_rejection(
     stack[mask] = np.nan
     print("Done.")
     print(f"Rejected {np.sum(mask)} outliers.")
-    return stack
+    return stack, mask
 
 @trackers.track_info
 def moon_rejection(
     stack: np.ndarray,
     headers: list[dict],
     extra_radius_pixels: float,
+    smoothness: float,
     region: coords.Region = None,
 ) -> np.ndarray:
     """
@@ -63,42 +64,45 @@ def moon_rejection(
         List of FITS headers corresponding to each image in the stack. Each header must contain the keywords "MOON-X", "MOON-Y", and "MOON-R".
     extra_radius_pixels : float
         Additional radius in pixels to add to the moon radius for rejection.
+    smoothness : float
+        Smoothness parameter in pixels for the weight transition.
     region : coords.Region, optional
         The region covered by the stack.
 
     Returns
     -------
-    stack : np.ndarray
-        Array of shape (N, H, W, C) after moon rejection. Shares memory with the input array.
+    weights : np.ndarray
+        Array of shape (N, H, W) representing the moon rejection weights.
     """
     cprint(f"Rejecting moon pixels...", end=' ', flush=True)
-    N, H, W = stack.shape[0:3]
+    N, H, W, C = stack.shape
     if region is None:
         region = coords.Region(width=W, height=H, left=0, top=0)
     # Track preferred index map to fill in all-masked pixels later
     max_dist_map = np.zeros((H, W))
     preferred_idx_map = np.zeros((H, W), dtype=np.int16)
-    mask = np.zeros((N, H, W), dtype=bool)
+    weights = np.zeros((N, H, W, C), dtype=np.float32)
     for i, header in enumerate(headers):
-        # Compute moon mask and distance map
+        # Compute moon weights and distance map
         moon_x, moon_y, radius = header["MOON-X"], header["MOON-Y"], header["MOON-R"] + extra_radius_pixels
         dist_map = disk.distance_map(coords.Point(moon_x, moon_y), region)
-        # Mask pixels inside the moon mask
-        mask[i, dist_map <= radius] = True
+        if smoothness == 0:
+            weights[i] = (dist_map > radius)[..., None]
+        else:
+            weights[i] = np.clip((dist_map - radius) / smoothness, 0, 1)[..., None]
         # Update preferred index map
         update_mask = dist_map > max_dist_map
         preferred_idx_map[update_mask] = i
         max_dist_map[update_mask] = dist_map[update_mask]
     # Unmask preferred pixels if all are masked
-    all_masked = np.all(mask, axis=0)
-    h_idx, w_idx = np.nonzero(all_masked)
+    all_masked = np.all(weights == 0, axis=0)
+    h_idx, w_idx, c_idx = np.nonzero(all_masked)
     n_idx = preferred_idx_map[h_idx, w_idx]
-    mask[n_idx, h_idx, w_idx] = False
+    weights[n_idx, h_idx, w_idx, c_idx] = 1
     # Apply mask to stack
-    stack[mask] = np.nan
+    stack[weights == 0] = np.nan
     print("Done.")
-    print(f"Rejected {np.sum(mask)} moon pixels.")
-    return stack
+    return stack, weights
 
 @trackers.track_info
 def compute_rejection_map(
