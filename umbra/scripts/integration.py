@@ -49,7 +49,7 @@ def main(
             region = coords.Region(width=shape[1], height=rows_range[1]-rows_range[0], left=0, top=rows_range[0])
             stack, headers = integration.io.read_stack(filepaths, rows_range)
             # Pixel rejection
-            stack = integration.rejection.moon_rejection(stack, headers, region)
+            stack = integration.rejection.moon_rejection(stack, headers, extra_radius_pixels, region)
             # stack = integration.rejection.outlier_rejection(stack, outlier_threshold)
             # Update output arrays
             img[rows_range[0]:rows_range[1]] = integration.reduce.average_ignore_nan(stack)
@@ -60,10 +60,8 @@ def main(
             
         output_header = fits.extract_subheader(header, group_keywords+["MOON-X", "MOON-Y"])
         group_name = " - ".join([f"{group_keywords[i]}_{group_values[i]}" for i in range(len(group_keywords))])
-        fits.save_as_fits(img, output_header, os.path.join(moon_stacks_dir, f"{group_name}.fits"))
-        fits.save_as_fits(rejection_map, None, os.path.join(moon_stacks_dir, f"{group_name}_rejection.fits"))
-        
-        return img, rejection_map
+        fits.save_as_fits(img, output_header, os.path.join(sun_stacks_dir, f"{group_name}.fits"))
+        fits.save_as_fits(rejection_map, None, os.path.join(sun_stacks_dir, f"{group_name}_rejection.fits"))
 
     return img, rejection_map
 
@@ -79,5 +77,9 @@ if __name__ == "__main__":
         config = yaml.safe_load(f)
 
     img, rejection_map = main(**config["integration"])
-    plt.imshow(rejection_map)
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+    axes[0].set_title("Stacked Image")
+    axes[0].imshow(display.ht_lut(img.data, m=0.003518, vmin=0.001835, vmax=1))
+    axes[1].set_title("Rejection Map")
+    axes[1].imshow(rejection_map)
     plt.show()

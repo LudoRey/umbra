@@ -49,8 +49,9 @@ def outlier_rejection(
 def moon_rejection(
     stack: np.ndarray,
     headers: list[dict],
+    extra_radius_pixels: float,
     region: coords.Region = None,
-) -> np.ma.MaskedArray:
+) -> np.ndarray:
     """
     Smooth reject the pixels that correspond to the moon.
     
@@ -60,6 +61,10 @@ def moon_rejection(
         Array of shape (N, H, W, C) representing the image stack.
     headers : list of dict
         List of FITS headers corresponding to each image in the stack. Each header must contain the keywords "MOON-X", "MOON-Y", and "MOON-R".
+    extra_radius_pixels : float
+        Additional radius in pixels to add to the moon radius for rejection.
+    region : coords.Region, optional
+        The region covered by the stack.
 
     Returns
     -------
@@ -76,8 +81,8 @@ def moon_rejection(
     mask = np.zeros((N, H, W), dtype=bool)
     for i, header in enumerate(headers):
         # Compute moon mask and distance map
-        x_c, y_c, radius = header["MOON-X"], header["MOON-Y"], header["MOON-R"]
-        dist_map = disk.distance_map(coords.Point(x_c, y_c), region)
+        moon_x, moon_y, radius = header["MOON-X"], header["MOON-Y"], header["MOON-R"] + extra_radius_pixels
+        dist_map = disk.distance_map(coords.Point(moon_x, moon_y), region)
         # Mask pixels inside the moon mask
         mask[i, dist_map <= radius] = True
         # Update preferred index map
@@ -113,6 +118,6 @@ def compute_rejection_map(
         Array of shape (H, W, C) with boolean values indicating rejected pixels.
     """
     cprint("Computing rejection map...", end=" ", flush=True)
-    rejection_map = np.any(np.isnan(stack), axis=0)
+    rejection_map = bn.anynan(stack, axis=0)
     cprint("Done.")
     return rejection_map
