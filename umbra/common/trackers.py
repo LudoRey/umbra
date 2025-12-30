@@ -12,13 +12,10 @@ class PsutilMemoryTracker:
         self.process = psutil.Process()
         self.interval = interval
         self.mem_peak = None
-        self.mem_before = None
         self.mem_current = None
         self.running = False
 
     def __enter__(self):
-        self.mem_before = self.process.memory_info().rss
-        self.mem_peak = self.mem_before
         self.running = True
         self.thread = threading.Thread(target=self._poll)
         self.thread.start()
@@ -29,15 +26,18 @@ class PsutilMemoryTracker:
         self.thread.join()
 
     def _poll(self):
+        self.mem_peak = self.get_current_memory()
         while self.running:
-            mem = self.process.memory_info().rss
-            if mem > self.mem_peak:
-                self.mem_peak = mem
-            self.mem_current = self.process.memory_info().rss
+            self.mem_current = self.get_current_memory()
+            if self.mem_current > self.mem_peak:
+                self.mem_peak = self.mem_current
             time.sleep(self.interval)
-            
-    def get_traced_memory(self):
-        return self.mem_current - self.mem_before, self.mem_peak - self.mem_before
+
+    def get_peak_memory(self):
+        return self.mem_peak
+    
+    def get_current_memory(self):
+        return self.process.memory_info().rss
     
 class StreamPrefixer:
     def __init__(self, stream: io.TextIOBase, prefix: str):
@@ -85,10 +85,13 @@ def track_psutil_memory(f):
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         with PsutilMemoryTracker() as tracker:
+            entry = tracker.get_current_memory()
+            cprint(f"Entry memory: {entry / 1000000:.2f} MB", color="yellow")
             result = f(*args, **kwargs)
-        exit, peak = tracker.get_traced_memory()
-        cprint(f"Exit memory delta: {exit / 1000000:.2f} MB", color="yellow")
-        cprint(f"Peak memory delta: {peak / 1000000:.2f} MB", color="yellow")
+            exit = tracker.get_current_memory()
+            peak = tracker.get_peak_memory()
+            cprint(f"Exit memory: {exit / 1000000:.2f} MB ({(exit - entry) / 1000000:+.2f} MB)", color="yellow")
+            cprint(f"Peak memory: {peak / 1000000:.2f} MB ({(peak - entry) / 1000000:+.2f} MB)", color="yellow")
         return result
     return wrapper
 
