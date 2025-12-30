@@ -23,7 +23,7 @@ def main(
     for group_idx, group_values in enumerate(grouped_filepaths.keys(), start=1):
         # Extract info about the group
         filepaths = grouped_filepaths[group_values]
-        filepaths = [filepaths[0], filepaths[-1]]
+        filepaths = filepaths[::3]
         num_images = len(filepaths)
         header = fits.read_fits_header(filepaths[0])
         shape = (header["NAXIS2"], header["NAXIS1"], header["NAXIS3"]) # (H, W, C)
@@ -31,9 +31,11 @@ def main(
         for keyword, value in zip(group_keywords, group_values):
             cprint(f"- {fits.format_keyword(keyword)}: {value}")
             
-        # Prepare output arrays
+        # Prepare output arrays (force allocation)
         img = np.zeros(shape, dtype=np.float32)
-        rejection_map = np.zeros(shape, dtype=np.float32)
+        total_weights = np.zeros(shape, dtype=np.float32)
+        img[:] = 0
+        total_weights[:] = 0
         
         # Chunking based on available memory
         available_mem = integration.memory.get_available_memory()
@@ -44,29 +46,25 @@ def main(
         num_chunks = len(rows_ranges)
         
         # Process each chunk
-        for chunk_idx, rows_range in enumerate(rows_ranges, start=1):
+        for chunk_idx, (row_start, row_end) in enumerate(rows_ranges, start=1):
             cprint(f"Processing chunk {chunk_idx}/{num_chunks}", style="bold")
-            region = coords.Region(width=shape[1], height=rows_range[1]-rows_range[0], left=0, top=rows_range[0])
-            stack, headers = integration.io.read_stack(filepaths, rows_range)
+            region = coords.Region(width=shape[1], height=row_end-row_start, left=0, top=row_start)
+            stack, headers = integration.io.read_stack(filepaths, (row_start, row_end))
             # Pixel rejection
-            stack, weights = integration.rejection.moon_rejection(stack, headers, extra_radius_pixels, smoothness, region)
-            # stack, mask = integration.rejection.outlier_rejection(stack, outlier_threshold)
-            # weights[mask] = 0
-            mask = weights == 0
-            stack[mask] = 0
+            weights = integration.rejection.moon_rejection(stack, headers, extra_radius_pixels, smoothness, region)
+            integration.rejection.outlier_rejection(stack, outlier_threshold)
             # Update output arrays
-            img[rows_range[0]:rows_range[1]] = integration.reduce.weighted_average(stack, weights)
-            rejection_map[rows_range[0]:rows_range[1]] = np.sum(weights, axis=0) / num_images
+            integration.reduce.weighted_average_ignore_nan(stack, weights, img[row_start:row_end], total_weights[row_start:row_end])
             # Free memory
-            del stack
+            del stack, weights
             gc.collect()
             
         output_header = fits.extract_subheader(header, group_keywords+["MOON-X", "MOON-Y"])
         group_name = " - ".join([f"{group_keywords[i]}_{group_values[i]}" for i in range(len(group_keywords))])
         fits.save_as_fits(img, output_header, os.path.join(sun_stacks_dir, f"{group_name}.fits"))
-        fits.save_as_fits(rejection_map, None, os.path.join(sun_stacks_dir, f"{group_name}_rejection.fits"))
+        fits.save_as_fits(total_weights, None, os.path.join(sun_stacks_dir, f"{group_name}_rejection.fits"))
 
-        return img, rejection_map
+        return img, total_weights
 
 
 if __name__ == "__main__":
