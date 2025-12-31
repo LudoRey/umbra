@@ -12,7 +12,7 @@ def outlier_rejection(
     checkstate: Callable[[], None]
 ) -> None:
     """
-    Perform iterative sigma clipping on a stack of images.
+    Perform a single pass of sigma clipping on a stack of images.
 
     Parameters
     ----------

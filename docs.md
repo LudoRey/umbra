@@ -47,9 +47,9 @@ The script `registration.py` simultaneously performs a moon-based and a sun-base
 
 ## Integration
 
-The scripts `sun_integration.py` and `moon_integration.py` integrate the previously registered images located in `moon_registered_dir` and `sun_registered_dir`. A stack is generated for each group (see `group_keywords`). The output directories are defined by `moon_stacks_dir` and `sun_stacks_dir`.
+The script `integration.py` integrates the previously registered images located in `moon_registered_dir` and `sun_registered_dir`. A stack is generated for each group (see `group_keywords`). The output directories are defined by `moon_stacks_dir` and `sun_stacks_dir`.
 
-The `sun_integration.py` script performs a weighted average of each pixel in order to reject as many moon pixels as possible. For each sub, a moon mask is computed, which depends on two additional parameters : 
+There are extra parameters in the sections `moon_integration` and `sun_integration` of the configuration file. The threshold `outlier_threshold` is used by the sigma-clipping routine and is given in units of standard deviation. When stacking sun-registered images, the `moon_rejection` parameter can be set to true to reject the moon pixels. This is necessary to avoid "ghosting" artifacts. For each sub, a moon mask is computed, which depends on two additional parameters : 
 - `extra_radius_pixels` : extra amount of pixels added to the radius of the moon mask. Increasing this parameter will lead to fewer artifacts at the cost of worse SNR : it should be as close to 0 as possible.
 - `smoothness` : smoothness of the mask in pixels. Increasing this parameter leads to a smoother transition at the cost of worse SNR.
 
