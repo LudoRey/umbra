@@ -10,16 +10,20 @@ def compute_stacking_memory_requirements(num_images, height, width, num_channels
     peak_rejection_memory = height * width * num_channels * (num_images * 2 + byte_per_pixel * 2) # see outlier_rejection notes
     return stack_memory + weights_memory + peak_rejection_memory
 
-def compute_rows_ranges_for_stack(num_images, shape, max_mem, dtype=np.float32):
+def compute_rows_ranges_for_stack(num_images, shape, available_mem, dtype):
     height, width, num_channels = shape
-    required_stack_mem = compute_stacking_memory_requirements(num_images, height, width, num_channels, np.dtype(dtype).itemsize)
-    n_chunks = int(np.ceil(required_stack_mem / max_mem))
-    chunk_mem = required_stack_mem / n_chunks
+    required_output_mem = height * width * num_channels * dtype.itemsize * 2
+    if required_output_mem >= available_mem:
+        raise MemoryError("Not enough available memory for output arrays.")
+    required_stacking_mem = compute_stacking_memory_requirements(num_images, height, width, num_channels, dtype.itemsize)
+    n_chunks = int(np.ceil(required_stacking_mem / (available_mem - required_output_mem)))
+    required_chunk_mem = required_stacking_mem / n_chunks
+    required_mem = required_chunk_mem + required_output_mem
 
     if n_chunks > 1:
-        cprint(f"The stack is divided into {n_chunks} chunks. Memory usage: {chunk_mem / 1000000:.2f} MB.")
+        cprint(f"The stack is divided into {n_chunks} chunks. Memory usage: {required_mem / 1000000:.2f} MB.")
     else:
-        cprint(f"The entire stack is processed in a single chunk. Memory usage: {chunk_mem / 1000000:.2f} MB.")
+        cprint(f"The entire stack is processed in a single chunk. Memory usage: {required_mem / 1000000:.2f} MB.")
 
     # Divide into chunks as evenly as possible, with the remainder distributed among the first chunks
     chunk_sizes = [(height // n_chunks) + (1 if i < height % n_chunks else 0) for i in range(n_chunks)]

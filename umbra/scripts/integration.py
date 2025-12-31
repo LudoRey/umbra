@@ -35,18 +35,20 @@ def main(
         group_identifier = ', '.join([f'{k}={v}' for k, v in zip(group_keywords, group_values)])
         cprint(f"Stacking {num_images} images from group {group_idx}/{num_groups} ({group_identifier})", style="bold")
             
+        # Compute available memory
+        safe_memory_fraction = 0.8
+        available_mem = int(integration.memory.get_available_memory() * safe_memory_fraction)
+        cprint(f"Using at most {safe_memory_fraction*100:.0f}% of available memory: {available_mem / 1000000:.2f} MB.")
+        
         # Prepare output arrays and force allocation in order to compute available memory
-        img = np.zeros(shape, dtype=np.float32)
-        total_weights = np.zeros(shape, dtype=np.float32)
+        dtype = np.dtype(np.float32)
+        img = np.zeros(shape, dtype=dtype)
+        total_weights = np.zeros(shape, dtype=dtype)
         img[:] = 0
         total_weights[:] = 0
         
         # Chunking based on available memory
-        available_mem = integration.memory.get_available_memory()
-        safe_memory_fraction = 0.8
-        max_mem = int(available_mem * safe_memory_fraction)
-        cprint(f"Using at most {safe_memory_fraction*100:.0f}% of available memory: {max_mem / 1000000:.2f} MB.")
-        rows_ranges = integration.memory.compute_rows_ranges_for_stack(num_images, shape, max_mem)
+        rows_ranges = integration.memory.compute_rows_ranges_for_stack(num_images, shape, available_mem, dtype=dtype)
         num_chunks = len(rows_ranges)
         
         # Process each chunk
