@@ -6,7 +6,7 @@ from umbra.common import fits, coords, trackers
 from umbra.common.terminal import cprint
 from umbra import integration
 
-@trackers.track_info
+# @trackers.track_info
 def main(
     # IO
     registered_dir,
