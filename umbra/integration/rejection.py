@@ -1,13 +1,15 @@
+from typing import Callable
 import numpy as np
 import bottleneck as bn
 
-from umbra.common import disk, trackers, coords
+from umbra.common import disk, coords
 from umbra.common.terminal import cprint
 
-@trackers.track_info
 def outlier_rejection(
     stack: np.ndarray,
     outlier_threshold: float,
+    *,
+    checkstate: Callable[[], None]
 ) -> None:
     """
     Perform iterative sigma clipping on a stack of images.
@@ -41,15 +43,18 @@ def outlier_rejection(
     tmp += (2 * outlier_threshold) * std
     mask |= stack > tmp
     stack[mask] = np.nan
-    print("Done.")
+    num_rejected = np.sum(mask)
+    checkstate()
+    print(f"Found {num_rejected} pixels.")
 
-@trackers.track_info
 def moon_rejection(
     stack: np.ndarray,
     headers: list[dict],
     extra_radius_pixels: float,
     smoothness: float,
     region: coords.Region = None,
+    *,
+    checkstate: Callable[[], None]
 ) -> np.ndarray:
     """
     Smooth reject the pixels that correspond to the moon.
@@ -76,7 +81,7 @@ def moon_rejection(
     ------
     The returned array uses S * N * H * W bytes of memory, where S is the number of bytes of a pixel in the input array (e.g., 4 bytes for float32).
     """
-    cprint(f"Rejecting moon pixels...", end=' ', flush=True)
+    cprint(f"Rejecting the moon...", end=' ', flush=True)
     N, H, W = stack.shape[0:3]
     if region is None:
         region = coords.Region(width=W, height=H, left=0, top=0)
@@ -101,28 +106,9 @@ def moon_rejection(
     preferred_image_indices = preferred_idx_map[all_zero_pixels]
     weights[(preferred_image_indices, *all_zero_pixels)] = 1.0
     # Set fully rejected pixels to NaN in the stack
-    stack[weights == 0] = np.nan
-    print("Done.")
+    mask = weights == 0
+    stack[mask] = np.nan
+    num_rejected = np.sum(mask)
+    checkstate()
+    print(f"Found {num_rejected} pixels.")
     return weights
-
-@trackers.track_info
-def compute_rejection_map(
-    stack: np.ndarray,
-) -> np.ndarray:
-    """
-    Compute a rejection map indicating which pixels were rejected (NaN) in any image of the stack.
-
-    Parameters
-    ----------
-    stack : np.ndarray
-        Array of shape (N, H, W, C) representing the image stack.
-
-    Returns
-    -------
-    rejection_map : np.ndarray
-        Array of shape (H, W, C) with boolean values indicating rejected pixels.
-    """
-    cprint("Computing rejection map...", end=" ", flush=True)
-    rejection_map = bn.anynan(stack, axis=0)
-    cprint("Done.")
-    return rejection_map

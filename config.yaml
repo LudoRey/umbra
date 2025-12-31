@@ -3,16 +3,16 @@
 #          *anchor_name       (reference an anchor)
 
 _shared:
-  input_dir: &input_dir 'path\to\fits'
-  moon_registered_dir: &moon_registered_dir 'path\to\moon_registered'
-  sun_registered_dir: &sun_registered_dir 'path\to\sun_registered'
-  moon_stacks_dir: &moon_stacks_dir 'path\to\moon_stacks'
-  sun_stacks_dir: &sun_stacks_dir 'path\to\sun_stacks'
-  moon_hdr_dir: &moon_hdr_dir 'path\to\moon_hdr'
-  sun_hdr_dir: &sun_hdr_dir 'path\to\sun_hdr'
-  merged_hdr_dir: &merged_hdr_dir 'path\to\merged_hdr'
-  group_keywords: &group_keywords ["EXPTIME"]
-  image_scale: &image_scale 1.00
+  - &input_dir 'path\to\fits'
+  - &moon_registered_dir 'path\to\moon_registered'
+  - &sun_registered_dir 'path\to\sun_registered'
+  - &moon_stacks_dir 'path\to\moon_stacks'
+  - &sun_stacks_dir 'path\to\sun_stacks'
+  - &moon_hdr_dir 'path\to\moon_hdr'
+  - &sun_hdr_dir 'path\to\sun_hdr'
+  - &merged_hdr_dir 'path\to\merged_hdr'
+  - &group_keywords ["EXPTIME"]
+  - &image_scale 1.00
 
 registration:
   input_dir: *input_dir
@@ -27,27 +27,18 @@ registration:
   max_iter: 10
   error_overlay_opacity: 0.75
 
-integration:
-  moon_registered_dir: *moon_registered_dir
-  sun_registered_dir: *sun_registered_dir
-  moon_stacks_dir: *moon_stacks_dir
-  sun_stacks_dir: *sun_stacks_dir
-  group_keywords: *group_keywords
-  image_scale: *image_scale
-  rejection_threshold: 3
-  extra_radius_pixels: 2
-  smoothness: 10.0
-
 moon_integration:
-  moon_registered_dir: *moon_registered_dir
-  moon_stacks_dir: *moon_stacks_dir
+  registered_dir: *moon_registered_dir
+  stacks_dir: *moon_stacks_dir
   group_keywords: *group_keywords
+  outlier_threshold: 3
 
 sun_integration:
-  sun_registered_dir: *sun_registered_dir
-  sun_stacks_dir: *sun_stacks_dir
+  registered_dir: *sun_registered_dir
+  stacks_dir: *sun_stacks_dir
   group_keywords: *group_keywords
-  image_scale: *image_scale
+  outlier_threshold: 3
+  moon_rejection: true
   extra_radius_pixels: 2
   smoothness: 10.0
 

@@ -3,24 +3,23 @@ import psutil
 
 from umbra.common.terminal import cprint
 
-def compute_stack_memory_requirements(num_images, height, width, num_channels, byte_per_pixel=4):
+def compute_stacking_memory_requirements(num_images, height, width, num_channels, byte_per_pixel=4):
     '''Peak memory usage during stacking. It is attained during outlier rejection.'''
     stack_memory = height * width * num_channels * num_images * byte_per_pixel
     weights_memory = height * width * num_images * byte_per_pixel
-    output_memory = height * width * num_channels * byte_per_pixel * 2
     peak_rejection_memory = height * width * num_channels * (num_images * 2 + byte_per_pixel * 2) # see outlier_rejection notes
-    return stack_memory + weights_memory + output_memory + peak_rejection_memory
+    return stack_memory + weights_memory + peak_rejection_memory
 
 def compute_rows_ranges_for_stack(num_images, shape, max_mem, dtype=np.float32):
     height, width, num_channels = shape
-    required_stack_mem = compute_stack_memory_requirements(num_images, height, width, num_channels, np.dtype(dtype).itemsize)
+    required_stack_mem = compute_stacking_memory_requirements(num_images, height, width, num_channels, np.dtype(dtype).itemsize)
     n_chunks = int(np.ceil(required_stack_mem / max_mem))
     chunk_mem = required_stack_mem / n_chunks
 
     if n_chunks > 1:
-        cprint(f"The stack is divided into {n_chunks} chunks to fit into memory. Each chunk uses approximately {chunk_mem / 1000000:.2f} MB of memory.")
+        cprint(f"The stack is divided into {n_chunks} chunks. Memory usage: {chunk_mem / 1000000:.2f} MB.")
     else:
-        cprint(f"The entire stack fits into memory. Approximate memory usage: {chunk_mem / 1000000:.2f} MB.")
+        cprint(f"The entire stack is processed in a single chunk. Memory usage: {chunk_mem / 1000000:.2f} MB.")
 
     # Divide into chunks as evenly as possible, with the remainder distributed among the first chunks
     chunk_sizes = [(height // n_chunks) + (1 if i < height % n_chunks else 0) for i in range(n_chunks)]
