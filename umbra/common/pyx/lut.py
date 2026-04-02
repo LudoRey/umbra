@@ -1,5 +1,4 @@
 # cython: language_level=3
-# distutils: extra_compile_args=/openmp
 
 import numpy as np
 import cython

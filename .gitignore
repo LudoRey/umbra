@@ -1,0 +1,14 @@
+# Virtual environment
+.venv/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Cython build artifacts
+*.c
+*.so
+*.pyd
+
+# Package distribution
+*.egg-info/
