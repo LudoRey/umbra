@@ -1,15 +1,11 @@
 import numpy as np
 from umbra.common.terminal import cprint
-from typing import Callable
 
 def weighted_average_ignore_nan(
     stack: np.ndarray,
     weights: np.ndarray,
     out_img: np.ndarray,
     out_total_weights: np.ndarray,
-    *,
-    img_callback: Callable[[np.ndarray], None],
-    checkstate: Callable[[], None]
 ) -> None:
     """
     Compute the weighted average of a stack of images.
@@ -39,6 +35,4 @@ def weighted_average_ignore_nan(
         np.sum(weights_c, axis=0, out=out_total_weights[..., c])
         out_img[..., c] /= out_total_weights[..., c]
     out_total_weights /= N
-    checkstate()
-    img_callback(out_img)
     print("Done.")

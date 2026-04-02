@@ -55,7 +55,7 @@ def main(
         for chunk_idx, (row_start, row_end) in enumerate(rows_ranges, start=1):
             cprint(f"Processing chunk {chunk_idx}/{num_chunks} (rows {row_start} -> {row_end})", style="bold")
             region = coords.Region(width=shape[1], height=row_end-row_start, left=0, top=row_start)
-            stack, headers = integration.io.read_stack(filepaths, (row_start, row_end), img_callback=img_callback, checkstate=checkstate)
+            stack, headers = integration.io.read_stack(filepaths, (row_start, row_end), checkstate=checkstate)
             # Pixel rejection
             if moon_rejection:
                 weights = integration.rejection.moon_rejection(stack, headers, extra_radius_pixels, smoothness, region, checkstate=checkstate)
@@ -63,7 +63,9 @@ def main(
                 weights = np.ones(stack.shape[0:3], dtype=stack.dtype)
             integration.rejection.outlier_rejection(stack, outlier_threshold, checkstate=checkstate)
             # Update output arrays
-            integration.reduce.weighted_average_ignore_nan(stack, weights, img[row_start:row_end], total_weights[row_start:row_end], img_callback=img_callback, checkstate=checkstate)
+            integration.reduce.weighted_average_ignore_nan(stack, weights, img[row_start:row_end], total_weights[row_start:row_end])
+            checkstate()
+            img_callback(img)
             # Free memory
             del stack, weights
             gc.collect()

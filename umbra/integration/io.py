@@ -2,7 +2,7 @@ import numpy as np
 from umbra.common import fits
 from umbra.common.terminal import cprint
 
-def read_stack(filepaths, rows_range=None, *, img_callback, checkstate):
+def read_stack(filepaths, rows_range=None, *, checkstate):
     N = len(filepaths)
     header = fits.read_fits_header(filepaths[0])
     if rows_range is None: 
@@ -14,7 +14,6 @@ def read_stack(filepaths, rows_range=None, *, img_callback, checkstate):
     for i in range(N):
         cprint(f"Loading image {i+1}/{N}...", end='\r' if i < N - 1 else ' ', flush=True)
         stack[i], header = fits.read_fits_as_float(filepaths[i], rows_range, verbose=False, checkstate=checkstate)
-        img_callback(stack[i])
         headers.append(header)
     print("Done.")
     return stack, headers
