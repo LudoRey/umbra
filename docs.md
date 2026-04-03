@@ -20,13 +20,10 @@ Install Umbra and its dependencies:
 ```
 pip install -e .
 ```
-*Note 1: you might be used to a `requirements.txt` file, but Umbra uses a `pyproject.toml` file instead; this installs Umbra as a package, which is necessary to run the provided scripts as they are not located at the root of the repository.*
-
-*Note 2: the `-e` flag stands for "editable", which allows you to modify the source code and have those changes take effect without needing to reinstall the package. This will also create a metadata directory `umbra.egg-info`.*
 
 # Scripts
 
-The main scripts are located in `umbra/scripts`. All parameters are defined in the configuration file `config.yaml`: change them as needed!
+The main scripts are located in `umbra/scripts`. All parameters are defined in the configuration file `config.example.yaml`: you should copy this file to `config.yaml` and change the parameters as needed!
 
 Some parameters are shared among different scripts, and are defined at the top of `config.yaml`:
 - `input_dir`, `moon_registered_dir`, `sun_registered_dir`, `moon_stacks_dir`, `sun_stacks_dir`, `moon_stacks_dir`, `sun_stacks_dir`, `moon_hdr_dir`, `sun_hdr_dir`, `merged_hdr_dir` : Input/output directories for the scripts.

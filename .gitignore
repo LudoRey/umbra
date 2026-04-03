@@ -12,3 +12,6 @@ __pycache__/
 
 # Package distribution
 *.egg-info/
+
+# Project specific files
+config.yaml
