@@ -14,9 +14,9 @@ def binary_disk(center: coords.Point | tuple[float, float], radius: float, regio
     region : coords.Region or tuple of int
         The region defining the size of the output mask. If a tuple is provided, it should be in the form (height, width).
     """
-    if isinstance(center, tuple):
+    if not isinstance(center, coords.Point):
         center = coords.Point(x=center[0], y=center[1])
-    if isinstance(region, tuple):
+    if not isinstance(region, coords.Region):
         region = coords.Region(height=region[0], width=region[1])
     dist_map = distance_map(center, region)
     disk = dist_map <= radius
