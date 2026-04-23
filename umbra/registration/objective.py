@@ -30,7 +30,7 @@ class RigidRegistrationObjective:
         ----------
         - ref_img : reference image.
         - img : image to register.
-        - rotation_center : center of rotation for the rigid transform. /!\ We are working here \
+        - rotation_center : center of rotation for the rigid transform. /!\\ We are working here \
         with the *inverse* transform, i.e. the one that maps registered_img to img. The center of rotation is \
         therefore not the same in the forward transform.
         - theta_factor : Scaling factor for theta (radians -> degrees by default) to make it comparable to tx, ty. \
