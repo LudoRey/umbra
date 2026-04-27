@@ -44,7 +44,7 @@ def main(
         dtype = np.dtype(np.float32)
         img = np.zeros(shape, dtype=dtype)
         total_weights = np.zeros(shape, dtype=dtype)
-        img[:] = 0
+        img[:] = np.nan
         total_weights[:] = 0
         
         # Chunking based on available memory
