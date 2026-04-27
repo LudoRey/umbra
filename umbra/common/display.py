@@ -1,4 +1,5 @@
 import numpy as np
+import bottleneck as bn
 from astropy.io import fits
 from umbra.common.pyx.lut import apply_lut_rgb, apply_lut_grayscale
 
@@ -8,13 +9,17 @@ def combine_red_green(img1, img2):
     img[:,:,1] = img2 
     return img
 
-def compute_statistics(x):
+def compute_statistics(x, has_nans: bool = False):
     '''Returns a dictionary containing median, MAD, and max values of x.'''
-    statistics = {}
-    statistics["median"] = np.median(x)
-    statistics["MAD"] = np.median(np.abs(x-statistics["median"]))*1.4826 # constant to make consistent with gaussian distribution https://pixinsight.com/forum/index.php?threads/pixinsight-1-8-0-ripley-redesigned-statistics-tool.6119/
-    statistics["max"] = x.max()
-    return statistics
+    if has_nans:
+        median = bn.nanmedian(x)
+        mad = bn.nanmedian(np.abs(x - median)) * 1.4826
+        maximum = bn.nanmax(x)
+    else:
+        median = np.median(x)
+        mad = np.median(np.abs(x - median)) * 1.4826
+        maximum = x.max()
+    return {"median": median, "MAD": mad, "max": maximum}
 
 def auto_ht_params(statistics, clip_from_median=-2.8, target_median=0.25):       
     vmax = statistics["max"]
@@ -45,16 +50,23 @@ def generate_ht_lut(m, vmin, vmax, bits=16):
 #     x = lut[x]
 #     return x
 
-def ht_lut(x, m, vmin=None, vmax=None, bits=16):
-    '''Returns an 8-bit image.'''
-    if np.any(np.isnan(x)):
-        raise ValueError("ht_lut does not support NaN values in input image.")
+def ht_lut(x, m, vmin=None, vmax=None, bits=16, has_nans: bool = False):
+    '''Returns an 8-bit image. NaN pixels are mapped to 0 (black).'''
+    nan_mask = None
+    if has_nans:
+        nan_mask = np.isnan(x)
+        x = x.copy()
+        x[nan_mask] = 0.0
     lut = generate_ht_lut(m, vmin, vmax, bits)
     if x.ndim == 3:
-        x = apply_lut_rgb(x, lut) 
-    if x.ndim == 2:
-        x = apply_lut_grayscale(x, lut) 
-    return x
+        result = apply_lut_rgb(x, lut)
+    elif x.ndim == 2:
+        result = apply_lut_grayscale(x, lut)
+    else:
+        raise ValueError("Unsupported number of dimensions")
+    if nan_mask is not None:
+        result[nan_mask] = 0
+    return result
 
 def mtf(x, m):
     if m == 0:
