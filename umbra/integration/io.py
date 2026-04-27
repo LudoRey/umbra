@@ -11,8 +11,8 @@ def read_stack(filepaths, rows_range=None, *, checkstate):
     H = rows_range[1] - rows_range[0]
     stack = np.zeros((N, H, W, C), dtype=np.float32)
     headers = []
+    cprint(f"Loading images...", end=' ', flush=True)
     for i in range(N):
-        cprint(f"Loading image {i+1}/{N}...", end='\r' if i < N - 1 else ' ', flush=True)
         stack[i], header = fits.read_fits_as_float(filepaths[i], rows_range, verbose=False, checkstate=checkstate)
         headers.append(header)
     print("Done.")
