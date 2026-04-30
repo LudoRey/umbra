@@ -102,8 +102,12 @@ def main(
     # axes[1].plot(times, sun_moon_translations, 'o')
     # plt.show()
 
-    _, _, filenames = next(os.walk(input_dir)) # not going into subfolders
-    filenames = [f for f in filenames if f != ref_filename and f not in anchor_filenames] # remove ref and anchor
+    filenames = os.listdir(input_dir)
+    filenames = sorted(
+        f for f in filenames
+        if f.endswith(('.fits', '.fit'))
+        and f != ref_filename and f not in anchor_filenames
+    )
     for filename in filenames:
         # Load image
         img, header = fits.read_fits_as_float(os.path.join(input_dir, filename), checkstate=checkstate)
