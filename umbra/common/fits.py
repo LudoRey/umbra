@@ -178,7 +178,7 @@ def collapse_nested_dict(nested_dict):
     return collapsed_dict
 
 def format_keyword(keyword):
-    if keyword == "EXPTIME":
+    if keyword == "EXPTIME" or keyword == "EXPOSURE":
         return "Exposure"
     elif keyword == "ISOSPEED":
         return "ISO"
@@ -190,7 +190,7 @@ def format_keyword(keyword):
         return keyword
 
 def format_keyword_value(keyword_value, keyword):
-    if keyword == "EXPTIME":
+    if keyword == "EXPTIME" or keyword == "EXPOSURE":
         return f"{keyword_value:.5f}"
     elif keyword == "ISOSPEED" or keyword == "GAIN":
         return f"{int(keyword_value)}"
