@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 import os
 import astropy.io.fits
 from umbra.common.terminal import cprint
@@ -26,13 +27,23 @@ def read_fits_as_float(filepath, rows_range=None, verbose=True, *, checkstate=la
         else:
             img = hdul[0].data[:,rows_range[0]:rows_range[1]]
     # Type checking and float conversion
-    if np.issubdtype(img.dtype, np.uint16): 
-        img = img.astype(np.float32)
-        img /= 65535
+    dtype = img.dtype
+    img = img.astype(np.float32)
+    if np.issubdtype(dtype, np.unsignedinteger) or np.issubdtype(dtype, np.integer): 
+        img /= np.iinfo(dtype).max
+        if np.issubdtype(dtype, np.integer):
+            if img.min() < 0:
+                raise ValueError(f"FITS image is in signed integer format and contains negative values.")
+            warnings.warn(
+                "FITS image is in signed integer format, which is not officially supported. "
+                "Consider converting to unsigned integer or floating point.",
+                UserWarning
+            )
     elif np.issubdtype(img.dtype, np.floating):
-        img = img.astype(np.float32)
+        if img.min() < 0 or img.max() > 1:
+            raise ValueError("FITS image is in floating point format but contains values outside the [0,1] range.")
     else:
-        raise TypeError(f"FITS image format must be either 16-bit unsigned integer, or floating point.")
+        raise ValueError(f"Unrecognized FITS image format. Expected integer, unsigned integer, or floating point.")
     # If color image : CxHxW -> HxWxC
     if len(img.shape) == 3:
         img = np.moveaxis(img, 0, 2)
@@ -56,7 +67,7 @@ def save_as_fits(img, header, filepath, convert_to_uint16=True, verbose=True, *,
         if convert_to_uint16:
             img = (np.clip(img, 0, 1)*65535).astype('uint16')
     else:
-        raise TypeError(f"FITS image format must be either 16-bit unsigned integer, or floating point.")
+        raise ValueError(f"Image format must be either 16-bit unsigned integer, or floating point.")
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     if len(img.shape) == 3:
         img = np.moveaxis(img, 2, 0)
