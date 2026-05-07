@@ -31,12 +31,12 @@ def read_fits_as_float(filepath, rows_range=None, verbose=True, *, checkstate=la
     img = img.astype(np.float32)
     if np.issubdtype(dtype, np.unsignedinteger) or np.issubdtype(dtype, np.integer): 
         img /= np.iinfo(dtype).max
-        if np.issubdtype(dtype, np.integer):
+        if np.issubdtype(dtype, np.integer) and not np.issubdtype(dtype, np.unsignedinteger):
             if img.min() < 0:
                 raise ValueError(f"FITS image is in signed integer format and contains negative values.")
             warnings.warn(
-                "FITS image is in signed integer format, which is not officially supported. "
-                "Consider converting to unsigned integer or floating point.",
+                "FITS image is in true signed integer format, which is not officially supported. "
+                "Consider converting to unsigned integer (through BZERO trick) or floating point.",
                 UserWarning
             )
     elif np.issubdtype(img.dtype, np.floating):
