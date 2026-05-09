@@ -52,6 +52,7 @@ def main(
         num_chunks = len(rows_ranges)
         
         # Process each chunk
+        headers = []
         for chunk_idx, (row_start, row_end) in enumerate(rows_ranges, start=1):
             cprint(f"Processing chunk {chunk_idx}/{num_chunks} (rows {row_start} -> {row_end})", style="bold")
             region = coords.Region(width=shape[1], height=row_end-row_start, left=0, top=row_start)
@@ -71,7 +72,7 @@ def main(
             gc.collect()
             
         cprint(f"Finished stacking group {group_idx}/{num_groups}.", color="green")
-        output_header = fits.extract_subheader(header, group_keywords+["MOON-X", "MOON-Y"])
+        output_header = fits.intersect_headers(headers)
         group_name = " - ".join([f"{group_keywords[i]}_{group_values[i]}" for i in range(len(group_keywords))])
         fits.save_as_fits(img, output_header, os.path.join(stacks_dir, f"{group_name}.fits"), checkstate=checkstate)
         fits.save_as_fits(total_weights, None, os.path.join(stacks_dir, f"{group_name}_rejection.fits"), checkstate=checkstate)

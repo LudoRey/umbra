@@ -113,6 +113,15 @@ def combine_headers(header1, header2):
     header = astropy.io.fits.Header(kv_dict)
     return header
 
+def intersect_headers(headers: list[astropy.io.fits.Header]):
+    def hash_card(card: astropy.io.fits.Card):
+        return hash((card.keyword, card.value, card.comment))
+    
+    hashes = [set(map(hash_card, header.cards)) for header in headers]
+    common = set.intersection(*hashes)
+
+    return astropy.io.fits.Header([card for card in headers[0].cards if hash_card(card) in common])
+
 def get_grouped_filepaths(dirname, keywords, output_format="collapsed_dict"):
     # Based on an ordered list of keywords, group into a nested dict, then sort into an ordered dict, then collapse the nested_dict
     # Example : keywords = ["EXPTIME", "ISOSPEED"]
