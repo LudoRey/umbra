@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-from umbra.common.fits import remove_pedestal, read_fits_as_float, save_as_fits, extract_subheader, get_grouped_filepaths, read_fits_header
+from umbra.common.fits import intersect_headers, remove_pedestal, read_fits_as_float, save_as_fits, get_grouped_filepaths, read_fits_header
 from umbra.common.disk import binary_disk
 from umbra.hdr import saturation_weighting, equalize_brightness, compute_scaling_factor
 from umbra.common.polar import angle_map
@@ -34,7 +34,7 @@ def main(
     moon_header = read_fits_header(os.path.join(moon_registered_dir, filename))
     moon_mask = binary_disk((moon_header["MOON-X"], moon_header["MOON-Y"]), radius=moon_radius_pixels, shape=shape[0:2])
     # Make theta image once and for all
-    img_theta = angle_map(ref_header["MOON-X"], ref_header["MOON-Y"], shape=shape[0:2]) # TODO: SUN-X and SUN-Y
+    img_theta = angle_map(moon_header["MOON-X"], moon_header["MOON-Y"], shape=shape[0:2]) # TODO: SUN-X and SUN-Y
 
     # Read first reference image (the longest exposure)
     group_name = list(grouped_filepaths.keys())[-1]
@@ -52,9 +52,11 @@ def main(
     hdr_img = weights[:,:,None] * img_y
     sum_weights = weights
 
+    headers = [header_y]
     for group_name in reversed(list(grouped_filepaths.keys())[:-1]):
         # Read image to fit
         img_x, header_x = read_fits_as_float(grouped_filepaths[group_name][0])
+        headers.append(header_x)
         # Compute mask and weights
         mask_x = (img_x.max(axis=2) > low_clipping_threshold) * (img_x.max(axis=2) < high_clipping_threshold)
         if group_name == list(grouped_filepaths.keys())[0]: # shortest exposure : no high range clipping
@@ -85,7 +87,7 @@ def main(
     hdr_img /= sum_weights[:,:,None]
     hdr_img = np.clip(hdr_img, 0, 1)
 
-    output_header = extract_subheader(header_x, []) # TODO: SUN-X and SUN-Y for filters
+    output_header = intersect_headers(headers) # TODO: SUN-X and SUN-Y for filters
 
     save_as_fits(hdr_img, output_header, os.path.join(sun_hdr_dir, "hdr.fits"), convert_to_uint16=False)
     

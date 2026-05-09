@@ -50,7 +50,7 @@ def main(
     ref_processed_img, ref_mass_center = registration.sun.preprocess(ref_processed_img, ref_moon_center, ref_moon_radius, sigma_high_pass_tangential, img_callback=img_callback, checkstate=checkstate)
     
     # Save image
-    ref_header = fits.update_header(ref_header, registration.moon.keyword_dict(*ref_moon_center, ref_moon_radius))
+    ref_header = fits.update_header(ref_header, registration.moon.keyword_cards(*ref_moon_center, ref_moon_radius))
     fits.save_as_fits(ref_img, ref_header, os.path.join(moon_registered_dir, ref_filename), checkstate=checkstate)
     fits.save_as_fits(ref_img, ref_header, os.path.join(sun_registered_dir, ref_filename), checkstate=checkstate)
 
@@ -83,8 +83,8 @@ def main(
         # Apply transforms and save registered images
         moon_registered_img = transform.warp(img, moon_tform.inverse.params) # inverse required for anchor to ref
         sun_registered_img = transform.warp(img, sun_tform.inverse.params) # inverse required for anchor to ref
-        moon_registered_header = fits.update_header(header, registration.moon.keyword_dict(*ref_moon_center, moon_radius))
-        sun_registered_header = fits.update_header(header, registration.moon.keyword_dict(*sun_tform.inverse(moon_center)[0], moon_radius))
+        moon_registered_header = fits.update_header(header, registration.moon.keyword_cards(*ref_moon_center, moon_radius))
+        sun_registered_header = fits.update_header(header, registration.moon.keyword_cards(*sun_tform.inverse(moon_center)[0], moon_radius))
         fits.save_as_fits(moon_registered_img, moon_registered_header, os.path.join(moon_registered_dir, filename), checkstate=checkstate)
         fits.save_as_fits(sun_registered_img, sun_registered_header, os.path.join(sun_registered_dir, filename), checkstate=checkstate)
 
@@ -127,8 +127,8 @@ def main(
         # Apply transforms and save registered images
         moon_registered_img = transform.warp(img, moon_tform.inverse.params) # inverse required for anchor to ref
         sun_registered_img = transform.warp(img, sun_tform.inverse.params) # inverse required for anchor to ref
-        moon_registered_header = fits.update_header(header, registration.moon.keyword_dict(*ref_moon_center, moon_radius))
-        sun_registered_header = fits.update_header(header, registration.moon.keyword_dict(*sun_tform.inverse(moon_center)[0], moon_radius))
+        moon_registered_header = fits.update_header(header, registration.moon.keyword_cards(*ref_moon_center, moon_radius))
+        sun_registered_header = fits.update_header(header, registration.moon.keyword_cards(*sun_tform.inverse(moon_center)[0], moon_radius))
         fits.save_as_fits(moon_registered_img, moon_registered_header, os.path.join(moon_registered_dir, filename), checkstate=checkstate)
         fits.save_as_fits(sun_registered_img, sun_registered_header, os.path.join(sun_registered_dir, filename), checkstate=checkstate)
 

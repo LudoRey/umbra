@@ -75,13 +75,6 @@ def save_as_fits(img, header, filepath, convert_to_uint16=False, verbose=True, *
     hdu.writeto(filepath, overwrite=True)
     checkstate()
 
-def update_fits_header(filepath, update_dict):
-    with astropy.io.fits.open(filepath, mode='update') as hdul:
-        header = hdul[0].header
-        for k, v in update_dict.items():
-            header[k] = v
-    print(f"Updated FITS header.")
-
 def read_fits_header(filepath, verbose=False, cache=False):
     if verbose:
         cprint(f"Opening {filepath}...", color="cyan")
@@ -89,28 +82,15 @@ def read_fits_header(filepath, verbose=False, cache=False):
         header = hdul[0].header
     return header
 
-def update_header(header, dict, in_place=False):
+def update_header(header: astropy.io.fits.Header, cards: list[astropy.io.fits.Card], in_place=False):
     header = astropy.io.fits.Header(header, copy = not in_place)
-    for k, v in dict.items():
-        header[k] = v
+    header.extend(cards, strip=False, update=True)
     return header
 
-def extract_subheader(header, keys):
-    kv_dict = {}
-    for k in keys:
-        if k in header.keys():
-            kv_dict[k] = header[k]
-    subheader = astropy.io.fits.Header(kv_dict)
-    return subheader
-
-def combine_headers(header1, header2):
-    # common keys will be overriden by header2's keywords
-    kv_dict = {}
-    for k in header1.keys():
-        kv_dict[k] = header1[k]
-    for k in header2.keys():
-        kv_dict[k] = header2[k]
-    header = astropy.io.fits.Header(kv_dict)
+def combine_headers(headers: list[astropy.io.fits.Header]):
+    header = astropy.io.fits.Header()
+    for header in headers:
+        header.extend(header, strip=False, update=True)
     return header
 
 def intersect_headers(headers: list[astropy.io.fits.Header]):

@@ -38,7 +38,7 @@ def main(
 
     img_merged = moon_mask[:,:,None]*img_moon + (1-moon_mask)[:,:,None]*img_sun
 
-    header_merged = combine_headers(header_moon, header_sun)
+    header_merged = combine_headers([header_moon, header_sun])
     save_as_fits(img_merged, header_merged, os.path.join(merged_hdr_dir, f"hdr.fits"), convert_to_uint16=False)
     save_as_fits(moon_mask[:,:,None], None, os.path.join(merged_hdr_dir, f"moon_mask.fits"))
     

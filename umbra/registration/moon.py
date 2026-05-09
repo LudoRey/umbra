@@ -2,6 +2,7 @@ import numpy as np
 import skimage as sk
 import cv2
 import warnings
+import astropy.io.fits
 
 from umbra.common.terminal import cprint
 
@@ -98,7 +99,9 @@ def make_ransac_img(img: np.ndarray, inliers_coords: np.ndarray, outliers_coords
         img[inliers_coords[:,0], inliers_coords[:,1], i] = 1 if i == 1 else 0
     return img
 
-def keyword_dict(moon_x, moon_y, moon_radius):
-    return {'MOON-X': (moon_x, 'X-coordinate of the moon center.'),
-            'MOON-Y': (moon_y, 'Y-coordinate of the moon center.'),
-            'MOON-R': (moon_radius, 'Radius of the moon.')}
+def keyword_cards(moon_x, moon_y, moon_radius):
+    return [
+        astropy.io.fits.Card('MOON-X', moon_x, 'X-coordinate of the moon center.'),
+        astropy.io.fits.Card('MOON-Y', moon_y, 'Y-coordinate of the moon center.'),
+        astropy.io.fits.Card('MOON-R', moon_radius, 'Radius of the moon.'),
+    ]
