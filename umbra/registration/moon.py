@@ -99,9 +99,9 @@ def make_ransac_img(img: np.ndarray, inliers_coords: np.ndarray, outliers_coords
         img[inliers_coords[:,0], inliers_coords[:,1], i] = 1 if i == 1 else 0
     return img
 
-def keyword_cards(moon_x, moon_y, moon_radius):
+def keyword_cards(moon_center: np.ndarray, moon_radius: float):
     return [
-        astropy.io.fits.Card('MOON-X', moon_x, 'X-coordinate of the moon center.'),
-        astropy.io.fits.Card('MOON-Y', moon_y, 'Y-coordinate of the moon center.'),
+        astropy.io.fits.Card('MOON-X', moon_center[0], 'X-coordinate of the moon center.'),
+        astropy.io.fits.Card('MOON-Y', moon_center[1], 'Y-coordinate of the moon center.'),
         astropy.io.fits.Card('MOON-R', moon_radius, 'Radius of the moon.'),
     ]

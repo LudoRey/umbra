@@ -52,7 +52,7 @@ def moon_rejection(
     headers: list[dict],
     extra_radius_pixels: float,
     smoothness: float,
-    region: coords.Region = None,
+    region: coords.Region | None = None,
     *,
     checkstate: Callable[[], None]
 ) -> np.ndarray:
@@ -69,8 +69,8 @@ def moon_rejection(
         Additional radius in pixels to add to the moon radius for rejection.
     smoothness : float
         Smoothness parameter in pixels for the weight transition.
-    region : coords.Region, optional
-        The region covered by the stack.
+    region : coords.Region or None
+        Optional, the region covered by the stack.
 
     Returns
     -------
@@ -84,7 +84,7 @@ def moon_rejection(
     cprint(f"Rejecting the moon...", end=' ', flush=True)
     N, H, W = stack.shape[0:3]
     if region is None:
-        region = coords.Region(width=W, height=H, left=0, top=0)
+        region = coords.Region.from_shape((H, W))
     # Track preferred index map to fill in all-masked pixels later
     max_dist_map = np.zeros((H, W), dtype=stack.dtype)
     preferred_idx_map = np.zeros((H, W), dtype=np.int16)
@@ -92,7 +92,7 @@ def moon_rejection(
     for i, header in enumerate(headers):
         # Compute moon weights and distance map
         moon_x, moon_y, radius = header["MOON-X"], header["MOON-Y"], header["MOON-R"] + extra_radius_pixels
-        dist_map = disk.distance_map(coords.Point(moon_x, moon_y), region)
+        dist_map = disk.distance_map(np.array([moon_x, moon_y]), region)
         if smoothness == 0:
             weights[i] = (dist_map > radius)
         else:

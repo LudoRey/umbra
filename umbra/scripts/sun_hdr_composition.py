@@ -2,6 +2,7 @@ import os
 import numpy as np
 
 from umbra.common.fits import intersect_headers, remove_pedestal, read_fits_as_float, save_as_fits, get_grouped_filepaths, read_fits_header
+from umbra.common import coords
 from umbra.common.disk import binary_disk
 from umbra.hdr import saturation_weighting, equalize_brightness, compute_scaling_factor
 from umbra.common.polar import angle_map
@@ -32,7 +33,11 @@ def main(
     # Make moon mask (but it is ambiguous; here we arbitrarily take the moon position from the reference image, which can be found in the header of any moon-aligned image)
     filename = [fname for fname in os.listdir(moon_registered_dir)][0]
     moon_header = read_fits_header(os.path.join(moon_registered_dir, filename))
-    moon_mask = binary_disk((moon_header["MOON-X"], moon_header["MOON-Y"]), radius=moon_radius_pixels, shape=shape[0:2])
+    moon_mask = binary_disk(
+        np.ndarray([moon_header["MOON-X"], moon_header["MOON-Y"]]),
+        radius=moon_radius_pixels,
+        region=coords.Region.from_shape(shape),
+    )
     # Make theta image once and for all
     img_theta = angle_map(moon_header["MOON-X"], moon_header["MOON-Y"], shape=shape[0:2]) # TODO: SUN-X and SUN-Y
 

@@ -6,8 +6,7 @@ class Region:
     height: int
     left: int = 0
     top: int = 0
-    
-@dataclass
-class Point:
-    x: float
-    y: float
+
+    @classmethod
+    def from_shape(cls, shape: tuple[int, ...]) -> 'Region':
+        return cls(width=shape[1], height=shape[0])
