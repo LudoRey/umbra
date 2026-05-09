@@ -58,7 +58,7 @@ def remove_pedestal(img, header):
         del header["PEDESTAL"]
     return img
 
-def save_as_fits(img, header, filepath, convert_to_uint16=True, verbose=True, *, checkstate=lambda: None):
+def save_as_fits(img, header, filepath, convert_to_uint16=False, verbose=True, *, checkstate=lambda: None):
     if verbose:
         cprint(f"Saving as {filepath}...", color="cyan")
     if np.issubdtype(img.dtype, np.uint16):
