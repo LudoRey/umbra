@@ -1,37 +1,35 @@
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 import warnings
 import os
 import astropy.io.fits
+from umbra.common import coords
 from umbra.common.terminal import cprint
 
-def read_fits(filepath, verbose=True):
-    if verbose:
-        cprint(f"Opening {filepath}...", color="cyan")
-    # Open image/header
-    with astropy.io.fits.open(filepath) as hdul:
-        header = hdul[0].header
-        img = hdul[0].data
-    # If color image : CxHxW -> HxWxC
-    if len(img.shape) == 3:
-        img = np.moveaxis(img, 0, 2)
-    return img, header
 
-def read_fits_as_float(filepath, rows_range=None, verbose=True, *, checkstate=lambda: None):
+def read_fits_as_float(filepath: Path | str, region: coords.Region | None = None, verbose=True, *, checkstate=lambda: None):
     if verbose:
         cprint(f"Opening {filepath}...", color="cyan")
     # Open image/header
     with astropy.io.fits.open(filepath) as hdul:
-        header = hdul[0].header
-        if rows_range is None:
-            img = hdul[0].data
+        hdu = cast(astropy.io.fits.PrimaryHDU, hdul[0])
+        header = hdu.header
+        data = hdu.data
+        if not isinstance(data, np.ndarray):
+            raise ValueError(f"Found no image data in {filepath}.")
+        if region is None:
+            img = data
         else:
-            img = hdul[0].data[:,rows_range[0]:rows_range[1]]
+            if data.ndim == 2:
+                img = data[region.top:region.bottom, region.left:region.right]
+            else:
+                img = data[:, region.top:region.bottom, region.left:region.right]
     # Type checking and float conversion
-    dtype = img.dtype
+    dtype = cast(np.dtype, img.dtype)
     img = img.astype(np.float32)
-    if np.issubdtype(dtype, np.unsignedinteger) or np.issubdtype(dtype, np.integer): 
+    if np.issubdtype(dtype, np.unsignedinteger) or np.issubdtype(dtype, np.integer):
         img /= np.iinfo(dtype).max
         if np.issubdtype(dtype, np.integer) and not np.issubdtype(dtype, np.unsignedinteger):
             if img.min() < 0:
@@ -52,15 +50,16 @@ def read_fits_as_float(filepath, rows_range=None, verbose=True, *, checkstate=la
     checkstate()
     return img, header
 
-def remove_pedestal(img, header):
-    '''Updates header in-place'''
-    if "PEDESTAL" in header:
-        img = img - header["PEDESTAL"] / 65535
+def remove_pedestal(img: np.ndarray, header: astropy.io.fits.Header) -> np.ndarray:
+    # Updates header in-place
+    pedestal = header["PEDESTAL"]
+    if pedestal is not None and isinstance(pedestal, (int, float)):
+        img = img - pedestal / 65535
         img = np.maximum(img, 0)
-        del header["PEDESTAL"]
+        header.remove("PEDESTAL")
     return img
 
-def save_as_fits(img, header, filepath, convert_to_uint16=False, verbose=True, *, checkstate=lambda: None):
+def save_as_fits(img: np.ndarray, header: astropy.io.fits.Header | None, filepath: Path | str, convert_to_uint16=False, verbose=True, *, checkstate=lambda: None):
     if verbose:
         cprint(f"Saving as {filepath}...", color="cyan")
     if np.issubdtype(img.dtype, np.uint16):
@@ -77,11 +76,12 @@ def save_as_fits(img, header, filepath, convert_to_uint16=False, verbose=True, *
     hdu.writeto(filepath, overwrite=True)
     checkstate()
 
-def read_fits_header(filepath, verbose=False, cache=False):
+def read_fits_header(filepath: Path | str, verbose=False) -> astropy.io.fits.Header:
     if verbose:
         cprint(f"Opening {filepath}...", color="cyan")
-    with astropy.io.fits.open(filepath, cache=cache) as hdul:
-        header = hdul[0].header
+    with astropy.io.fits.open(filepath) as hdul:
+        hdu = cast(astropy.io.fits.PrimaryHDU, hdul[0])
+        header = hdu.header
     return header
 
 def update_header(header: astropy.io.fits.Header, cards: list[astropy.io.fits.Card], in_place=False):
@@ -167,7 +167,7 @@ def format_collapsed_dict_keys(collapsed_dict: dict, keywords: list[str]):
         formatted_dict[formatted_key_tuple] = value
     return formatted_dict
 
-def format_keyword(keyword):
+def format_keyword(keyword: str) -> str:
     if keyword == "EXPTIME" or keyword == "EXPOSURE":
         return "Exposure"
     elif keyword == "ISOSPEED":
@@ -179,7 +179,7 @@ def format_keyword(keyword):
     else:
         return keyword
 
-def format_keyword_value(keyword_value, keyword):
+def format_keyword_value(keyword_value: Any, keyword: str) -> str:
     if keyword == "EXPTIME" or keyword == "EXPOSURE":
         return f"{keyword_value:.5f}"
     elif keyword == "ISOSPEED" or keyword == "GAIN":

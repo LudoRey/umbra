@@ -1,5 +1,6 @@
 import gc
 import os
+from typing import cast
 import numpy as np
 
 from umbra.common import fits, coords, trackers
@@ -31,7 +32,7 @@ def main(
         filepaths = grouped_filepaths[group_values]
         num_images = len(filepaths)
         header = fits.read_fits_header(filepaths[num_images // 2])
-        shape = (header["NAXIS2"], header["NAXIS1"], header["NAXIS3"]) # (H, W, C)
+        shape = (cast(int, header["NAXIS2"]), cast(int, header["NAXIS1"]), cast(int, header["NAXIS3"])) # (H, W, C)
         group_identifier = ', '.join([f'{k}={v}' for k, v in zip(group_keywords, group_values)])
         cprint(f"Stacking {num_images} images from group {group_idx}/{num_groups} ({group_identifier})", style="bold")
             
@@ -56,7 +57,7 @@ def main(
         for chunk_idx, (row_start, row_end) in enumerate(rows_ranges, start=1):
             cprint(f"Processing chunk {chunk_idx}/{num_chunks} (rows {row_start} -> {row_end})", style="bold")
             region = coords.Region(width=shape[1], height=row_end-row_start, left=0, top=row_start)
-            stack, headers = integration.io.read_stack(filepaths, (row_start, row_end), checkstate=checkstate)
+            stack, headers = integration.io.read_stack(filepaths, region, checkstate=checkstate)
             # Pixel rejection
             if moon_rejection:
                 weights = integration.rejection.moon_rejection(stack, headers, extra_radius_pixels, smoothness, region, checkstate=checkstate)
