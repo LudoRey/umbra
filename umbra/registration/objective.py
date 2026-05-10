@@ -1,16 +1,17 @@
-from typing import Any, cast
+from typing import cast
 
 import numpy as np
 import cv2
+import scipy.fft
 
 from umbra.common import transform
 
-
 def correlation(img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
-    img1 = cv2.dft(img1, flags=cv2.DFT_COMPLEX_OUTPUT)
-    img2 = cv2.dft(img2, flags=cv2.DFT_COMPLEX_OUTPUT)
-    correlation_spectrum = cv2.mulSpectrums(img1, img2, 0, conjB=True)
-    return cv2.idft(correlation_spectrum, flags=cv2.DFT_REAL_OUTPUT | cv2.DFT_SCALE)
+    spectrum1 = cast(np.ndarray, scipy.fft.rfft2(img1))
+    spectrum2 = cast(np.ndarray, scipy.fft.rfft2(img2))
+    correlation_spectrum = spectrum1 * np.conjugate(spectrum2)
+    correlation_img = cast(np.ndarray, scipy.fft.irfft2(correlation_spectrum, s=img1.shape))
+    return correlation_img
 
 
 def correlation_peak(img1: np.ndarray, img2: np.ndarray) -> tuple[int, int]:
