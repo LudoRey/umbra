@@ -3,14 +3,27 @@ import psutil
 
 from umbra.common.terminal import cprint
 
-def compute_stacking_memory_requirements(num_images, height, width, num_channels, byte_per_pixel=4):
+
+def compute_stacking_memory_requirements(
+    num_images: int,
+    height: int,
+    width: int,
+    num_channels: int,
+    byte_per_pixel: int = 4,
+) -> int:
     '''Peak memory usage during stacking. It is attained during outlier rejection.'''
     stack_memory = height * width * num_channels * num_images * byte_per_pixel
     weights_memory = height * width * num_images * byte_per_pixel
     peak_rejection_memory = height * width * num_channels * (num_images * 2 + byte_per_pixel * 2) # see outlier_rejection notes
     return stack_memory + weights_memory + peak_rejection_memory
 
-def compute_rows_ranges_for_stack(num_images, shape, available_mem, dtype):
+
+def compute_rows_ranges_for_stack(
+    num_images: int,
+    shape: tuple[int, int, int],
+    available_mem: int,
+    dtype: np.dtype,
+) -> list[tuple[int, int]]:
     height, width, num_channels = shape
     required_output_mem = height * width * num_channels * dtype.itemsize * 2
     if required_output_mem >= available_mem:
@@ -36,6 +49,7 @@ def compute_rows_ranges_for_stack(num_images, shape, available_mem, dtype):
         row_start = row_end
     return rows_ranges
 
-def get_available_memory():
+
+def get_available_memory() -> int:
     mem = psutil.virtual_memory()
     return mem.available

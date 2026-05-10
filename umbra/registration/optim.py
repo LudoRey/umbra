@@ -1,9 +1,10 @@
+from collections.abc import Callable
+
 import numpy as np
-from typing import Callable
 from umbra.common.terminal import cprint
 
 
-def get_descent_direction(g, H=None):
+def get_descent_direction(g: np.ndarray, H: np.ndarray | None = None) -> np.ndarray:
     '''
     Compute the descent direction using the Hessian H and the gradient g.
     If H is None, we use the gradient as the descent direction.
@@ -14,13 +15,17 @@ def get_descent_direction(g, H=None):
     else:
         return np.linalg.solve(H, -g)
 
-def line_search_newton(x0: np.ndarray, func: Callable, grad: Callable,
-                       hess: Callable = None,
-                       c: float = 0.1,
-                       delta_max: float | np.ndarray = 1,
-                       delta_min: float | np.ndarray = 1e-3, 
-                       max_iter: int = 20,
-                       callback = lambda x: None):
+def line_search_newton(
+    x0: np.ndarray,
+    func: Callable[[np.ndarray], float],
+    grad: Callable[[np.ndarray], np.ndarray],
+    hess: Callable[[np.ndarray], np.ndarray] | None = None,
+    c: float = 0.1,
+    delta_max: float | np.ndarray = 1,
+    delta_min: float | np.ndarray = 1e-3, 
+    max_iter: int = 20,
+    callback: Callable[[int, np.ndarray, np.ndarray | None, float], None] = lambda _iter, _x, _delta, _f: None
+) -> np.ndarray:
     '''
     Newton's method with two-way line search based on Armijo rule (see https://en.wikipedia.org/wiki/Backtracking_line_search).
     The hessian is optional; if not provided, will fall back to gradient descent.

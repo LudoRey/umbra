@@ -1,16 +1,19 @@
-from typing import Tuple
+from typing import Any, cast
+
 import numpy as np
 import cv2
 
 from umbra.common import transform
 
-def correlation(img1, img2):
+
+def correlation(img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
     img1 = cv2.dft(img1, flags=cv2.DFT_COMPLEX_OUTPUT)
     img2 = cv2.dft(img2, flags=cv2.DFT_COMPLEX_OUTPUT)
     correlation_spectrum = cv2.mulSpectrums(img1, img2, 0, conjB=True)
     return cv2.idft(correlation_spectrum, flags=cv2.DFT_REAL_OUTPUT | cv2.DFT_SCALE)
 
-def correlation_peak(img1, img2) -> Tuple[int, int]:
+
+def correlation_peak(img1: np.ndarray, img2: np.ndarray) -> tuple[int, int]:
     '''
     The highest peak of the correlation between img1 and img2 minimizes the MSE w.r.t. integer translation img2 -> img1.
     We typically use it as an initial guess for the rigid registration.
@@ -21,16 +24,34 @@ def correlation_peak(img1, img2) -> Tuple[int, int]:
     h, w = img1.shape[0:2]
     ty = ty if ty <= h // 2 else ty - h # ty in [0,h-1] -> [-h//2+1, h//2]
     tx = tx if tx <= w // 2 else tx - w
-    return tx, ty
-    
+    return int(tx), int(ty)
+
+
 class RigidRegistrationObjective:
-    def __init__(self, ref_img, img, rotation_center, theta_factor=180/np.pi):
+    ref_img: np.ndarray
+    img: np.ndarray
+    rotation_center: tuple[float, float]
+    theta_factor: float
+    h: int
+    w: int
+    x_grid: np.ndarray
+    y_grid: np.ndarray
+    img_grad_xy: np.ndarray
+    img_hess_xy: np.ndarray
+
+    def __init__(
+        self,
+        ref_img: np.ndarray,
+        img: np.ndarray,
+        rotation_center: tuple[float, float],
+        theta_factor: float = 180 / np.pi,
+    ) -> None:
         '''
         Parameters
         ----------
         - ref_img : reference image.
         - img : image to register.
-        - rotation_center : center of rotation for the rigid transform. /!\\ We are working here \
+        - rotation_center : center of rotation for the rigid transform. We are working here \
         with the *inverse* transform, i.e. the one that maps registered_img to img. The center of rotation is \
         therefore not the same in the forward transform.
         - theta_factor : Scaling factor for theta (radians -> degrees by default) to make it comparable to tx, ty. \
@@ -39,12 +60,12 @@ class RigidRegistrationObjective:
         Note that this is not relevant if we are using the Hessian, as it takes the curvature into account.
         '''
         dtype = img.dtype
-        if dtype not in [np.float32, np.float64]:
-            raise ValueError(f"Invalid img dtype {dtype}. Must be np.float32 or np.float64.")
+        if not np.issubdtype(dtype, np.floating):
+            raise TypeError(f"Invalid img dtype {dtype}. Must be np.floating.")
         self.ref_img = ref_img
         self.img = img
         self.rotation_center = rotation_center
-        self.theta_factor = theta_factor 
+        self.theta_factor = theta_factor
 
         # Precompute constants
         self.h, self.w = self.ref_img.shape
@@ -61,16 +82,16 @@ class RigidRegistrationObjective:
         self.img_hess_xy[...,1] = cv2.Sobel(self.img, ddepth, 1, 1)  # d_xy = d_yx
         self.img_hess_xy[...,2] = cv2.Sobel(self.img, ddepth, 0, 2)  # d_yy
     
-    def value(self, x):
+    def value(self, x: np.ndarray) -> float:
         # Get the transform "img -> registered_img" determined by theta, tx, ty
         # What we actually want to apply is its inverse "img -> registered_img"
         theta, tx, ty = self.convert_x_to_params(x) 
         tform = transform.centered_rigid_transform(center=self.rotation_center, rotation=theta, translation=(tx, ty)) 
         registered_img = transform.warp(self.img, tform.inverse.params) # is zero-padding fine here ?
         diff = registered_img - self.ref_img
-        return 1/2*cv2.mean(diff*diff)[0]
+        return float(1 / 2 * cv2.mean(diff * diff)[0])
 
-    def grad(self, x):
+    def grad(self, x: np.ndarray) -> np.ndarray:
         # Get the transform "img -> registered_img" determined by theta, tx, ty
         # What we actually want to apply is its inverse, i.e. "img -> registered_img"
         theta, tx, ty = self.convert_x_to_params(x) 
@@ -96,15 +117,15 @@ class RigidRegistrationObjective:
 
         # We are now ready to compute the gradient of the objective function (MSE) with respect to theta, tx, ty
         # Simple application of the chain rule here
-        objective_grad = np.zeros(3)
-        objective_grad[0] = -cv2.mean(self.ref_img*registered_img_dtheta)[0]
-        objective_grad[1] = -cv2.mean(self.ref_img*registered_img_dtx)[0]
-        objective_grad[2] = -cv2.mean(self.ref_img*registered_img_dty)[0]
+        objective_grad = np.zeros(3, dtype=self.img.dtype)
+        objective_grad[0] = -cv2.mean(self.ref_img*registered_img_dtheta)[0] # type: ignore 
+        objective_grad[1] = -cv2.mean(self.ref_img*registered_img_dtx)[0] # type: ignore
+        objective_grad[2] = -cv2.mean(self.ref_img*registered_img_dty)[0] # type: ignore
         # Compute objective gradient with respect to x (account for scaling)
         objective_grad[0] /= self.theta_factor # dx / dthetha
         return objective_grad
     
-    def hess(self, x):
+    def hess(self, x: np.ndarray) -> np.ndarray:
         # Get the transform "img -> registered_img" determined by theta, tx, ty
         # What we actually want to apply is its inverse, i.e. "img -> registered_img"
         theta, tx, ty = self.convert_x_to_params(x) 
@@ -150,10 +171,10 @@ class RigidRegistrationObjective:
                                   tform_y_dtheta2*registered_img_grad_xy[...,1]
 
         # Compute objective Hessian
-        objective_hess = np.zeros(6)
-        objective_hess[0] = -cv2.mean(self.ref_img*registered_img_dtheta2)[0] # (6,)
-        objective_hess[1] = -cv2.mean(self.ref_img*registered_img_dthetatx)[0]
-        objective_hess[2] = -cv2.mean(self.ref_img*registered_img_dthetaty)[0]
+        objective_hess = np.zeros(6, dtype=self.img.dtype)
+        objective_hess[0] = -cv2.mean(self.ref_img*registered_img_dtheta2)[0] # type: ignore
+        objective_hess[1] = -cv2.mean(self.ref_img*registered_img_dthetatx)[0] # type: ignore
+        objective_hess[2] = -cv2.mean(self.ref_img*registered_img_dthetaty)[0] # type: ignore
         for i in range(3):
             objective_hess[i+3] = -cv2.mean(self.ref_img*registered_img_hess_txty[...,i])[0]
         # Compute objective Hessian with respect to x (account for scaling)
@@ -165,11 +186,11 @@ class RigidRegistrationObjective:
                          [objective_hess[2], objective_hess[4], objective_hess[5]]])
 
     
-    def convert_x_to_params(self, x):
+    def convert_x_to_params(self, x: np.ndarray) -> tuple[float, float, float]:
         theta, tx, ty = x[0]/self.theta_factor, x[1], x[2] # parameters of registered_img -> img (we call it the *inverse* transform)
-        return theta, tx, ty
+        return float(theta), float(tx), float(ty)
       
-    def convert_params_to_x(self, theta, tx, ty):
+    def convert_params_to_x(self, theta: float, tx: float, ty: float) -> np.ndarray:
         x = np.array([theta*self.theta_factor, tx, ty])
         return x
     

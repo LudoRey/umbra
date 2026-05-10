@@ -58,7 +58,14 @@ def sobel_grad_mag(img):
     sobel_y = cv2.Sobel(img, cv2.CV_64F, 0, 1)
     return cv2.magnitude(sobel_x, sobel_y)
 
-def gaussian_filter(img, sigma: float, border_mode='reflect', truncate: float=4.0, *, axes: tuple | None = None):
+def gaussian_filter(
+    img: np.ndarray,
+    sigma: float,
+    border_mode: str = 'reflect',
+    truncate: float = 4.0,
+    *,
+    axes: tuple[int, ...] | None = None
+) -> np.ndarray:
     radius = round(truncate*sigma)
     kernel_size = 2*radius + 1
     if axes is None or axes == (0,1):
@@ -89,7 +96,12 @@ def radial_tangential(img_polar, sigma, rho_0, rho_factor, theta_factor):
     blurred_img_polar = gaussian_filter(blurred_img_polar, sigma=sigma*rho_factor, axes=(1,), border_mode='reflect') # radial
     return blurred_img_polar
 
-def tangential_filter(img, center, sigma, output_shape=[1000,1000]):
+def tangential_filter(
+    img: np.ndarray,
+    center: tuple[float, float],
+    sigma: float,
+    output_shape: tuple[int, int] = (1000, 1000),
+) -> np.ndarray:
     sigma *= output_shape[0]/360 # The unit of sigma is degree; need to scale it accordingly
     shape = img.shape
     img = transform.warp_cart_to_polar(img, center, output_shape)
@@ -111,30 +123,30 @@ def partial_filter(img, mask, filter_func, filter_args):
     blurred_img = mask*blurred_img
     return blurred_img
 
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    from polar import angle_map, radius_map
+# if __name__ == "__main__":
+#     import matplotlib.pyplot as plt
+#     from polar import angle_map, radius_map
 
-    SIGMA = 10
+#     SIGMA = 10
 
-    shape = [1000, 1000]
-    x_c, y_c = 500, 500
+#     shape = [1000, 1000]
+#     x_c, y_c = 500, 500
 
-    theta, rho = angle_map(x_c, y_c, shape), radius_map(x_c, y_c, shape)
+#     theta, rho = angle_map(x_c, y_c, shape), radius_map(x_c, y_c, shape)
 
-    fig, axes = plt.subplots(1,2)
+#     fig, axes = plt.subplots(1,2)
 
-    axes[0].imshow(theta); axes[0].set_title('Angle')
-    axes[1].imshow(rho); axes[1].set_title('Radius')
+#     axes[0].imshow(theta); axes[0].set_title('Angle')
+#     axes[1].imshow(rho); axes[1].set_title('Radius')
 
-    fig1, axes1 = plt.subplots(2,3)
+#     fig1, axes1 = plt.subplots(2,3)
 
-    i = [200, 400]
-    j = [200, 400]
-    for k in range(2):
-        radial, tangential = achf_kernel_at_ij(i[k], j[k], theta, rho, SIGMA, return_components=True)
-        axes1[k,0].imshow(radial); axes1[0,0].set_title("Radial component")
-        axes1[k,1].imshow(tangential); axes1[0,1].set_title("Tangential component")
-        axes1[k,2].imshow(radial*tangential); axes1[0,2].set_title("Kernel")
+#     i = [200, 400]
+#     j = [200, 400]
+#     for k in range(2):
+#         radial, tangential = achf_kernel_at_ij(i[k], j[k], theta, rho, SIGMA, return_components=True)
+#         axes1[k,0].imshow(radial); axes1[0,0].set_title("Radial component")
+#         axes1[k,1].imshow(tangential); axes1[0,1].set_title("Tangential component")
+#         axes1[k,2].imshow(radial*tangential); axes1[0,2].set_title("Kernel")
 
-    plt.show()
+#     plt.show()

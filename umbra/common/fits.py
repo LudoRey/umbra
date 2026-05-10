@@ -1,4 +1,5 @@
 from pathlib import Path
+from collections.abc import Sequence
 from typing import Any, cast
 
 import numpy as np
@@ -84,18 +85,18 @@ def read_fits_header(filepath: Path | str, verbose=False) -> astropy.io.fits.Hea
         header = hdu.header
     return header
 
-def update_header(header: astropy.io.fits.Header, cards: list[astropy.io.fits.Card], in_place=False):
+def update_header(header: astropy.io.fits.Header, cards: Sequence[astropy.io.fits.Card], in_place=False):
     header = astropy.io.fits.Header(header, copy = not in_place)
     header.extend(cards, strip=False, update=True)
     return header
 
-def combine_headers(headers: list[astropy.io.fits.Header]):
+def combine_headers(headers: Sequence[astropy.io.fits.Header]):
     header = astropy.io.fits.Header()
     for header in headers:
         header.extend(header, strip=False, update=True)
     return header
 
-def intersect_headers(headers: list[astropy.io.fits.Header]):
+def intersect_headers(headers: Sequence[astropy.io.fits.Header]):
     def hash_card(card: astropy.io.fits.Card):
         return hash((card.keyword, card.value, card.comment))
     
@@ -104,7 +105,7 @@ def intersect_headers(headers: list[astropy.io.fits.Header]):
 
     return astropy.io.fits.Header([card for card in headers[0].cards if hash_card(card) in common])
 
-def get_grouped_filepaths(dirpath: Path | str, keywords: list[str]) -> dict[tuple[str, ...], list[Path]]:
+def get_grouped_filepaths(dirpath: Path | str, keywords: Sequence[str]) -> dict[tuple[str, ...], list[Path]]:
     """
     Groups FITS filepaths in a directory according to the values of specified header keywords.
 
@@ -160,7 +161,7 @@ def collapse_nested_dict(nested_dict: dict):
             collapsed_dict[(key,)] = nested_dict[key]
     return collapsed_dict
 
-def format_collapsed_dict_keys(collapsed_dict: dict, keywords: list[str]):
+def format_collapsed_dict_keys(collapsed_dict: dict, keywords: Sequence[str]):
     formatted_dict = {}
     for key_tuple, value in collapsed_dict.items():
         formatted_key_tuple = tuple(format_keyword_value(k, keywords[i]) for i, k in enumerate(key_tuple))

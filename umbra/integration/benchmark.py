@@ -1,4 +1,5 @@
 import sys
+
 import numpy as np
 import bottleneck as bn
 from umbra.common.terminal import ColorTerminalStream
@@ -6,46 +7,55 @@ from umbra.common.trackers import track_info
 
 
 @track_info
-def numpy_masked_mean(masked_stack: np.ma.MaskedArray):
+def numpy_masked_mean(masked_stack: np.ma.MaskedArray) -> np.ma.MaskedArray:
     return np.mean(masked_stack, axis=0) # returns a float64 masked array
     
 @track_info
-def numpy_masked_std(masked_stack: np.ma.MaskedArray, masked_mean: np.ma.MaskedArray = None):
-    return np.std(masked_stack, mean=masked_mean, axis=0) # returns a float64 masked array
+def numpy_masked_std(
+    masked_stack: np.ma.MaskedArray,
+    masked_mean: np.ma.MaskedArray | None = None,
+) -> np.ma.MaskedArray:
+    if masked_mean is None:
+        return np.std(masked_stack, axis=0)
+    return np.std(masked_stack, mean=masked_mean, axis=0)
 
 @track_info
-def numpy_mean(stack: np.ndarray):
+def numpy_mean(stack: np.ndarray) -> np.ndarray:
     return np.mean(stack, axis=0)
     
 @track_info
-def numpy_std(stack: np.ndarray, mean: np.ndarray = None):
+def numpy_std(stack: np.ndarray, mean: np.ndarray | None = None) -> np.ndarray:
+    if mean is None:
+        return np.std(stack, axis=0)
     return np.std(stack, mean=mean, axis=0)
 
 @track_info
-def numpy_nanmean(stack: np.ndarray):
+def numpy_nanmean(stack: np.ndarray) -> np.ndarray:
     return np.nanmean(stack, axis=0)
 
 @track_info
-def numpy_nanstd(stack: np.ndarray, mean: np.ndarray = None):
+def numpy_nanstd(stack: np.ndarray, mean: np.ndarray | None = None) -> np.ndarray:
     if mean is None:
         return np.nanstd(stack, axis=0)
     return np.nanstd(stack, mean=mean, axis=0)
 
 @track_info
-def bottleneck_nanmean(stack: np.ndarray):
+def bottleneck_nanmean(stack: np.ndarray) -> np.ndarray:
     return bn.nanmean(stack, axis=0)
 
 @track_info
-def bottleneck_nanstd(stack: np.ndarray):
+def bottleneck_nanstd(stack: np.ndarray) -> np.ndarray:
     return bn.nanstd(stack, axis=0)
 
-def generate_mask(num_images, shape, p):
+
+def generate_mask(num_images: int, shape: tuple[int, ...], p: float) -> np.ndarray:
     mask = np.random.rand(num_images, *shape) < p
     all_true_slices = np.all(mask, axis=0)  # shape: (height, width)
     mask[0, all_true_slices] = False # Unmask the first image for each all true slice
     return mask
 
-def generate_stack(num_images, shape):
+
+def generate_stack(num_images: int, shape: tuple[int, ...]) -> np.ndarray:
     return np.random.rand(num_images, *shape).astype(np.float32)
 
 if __name__ == "__main__":

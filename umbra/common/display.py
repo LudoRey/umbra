@@ -111,5 +111,5 @@ def crop(img, left, right, top, bottom, header=None):
 def center_crop(img, x_c, y_c, w=512, h=512, header=None):
     return crop(img, x_c-w//2, x_c+w//2-1, y_c-h//2, y_c+h//2-1, header)
 
-def normalize(img):
+def normalize(img: np.ndarray) -> np.ndarray:
     return (img - img.min()) / (img.max() - img.min())

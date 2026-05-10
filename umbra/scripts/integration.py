@@ -1,29 +1,34 @@
 import gc
 import os
+from collections.abc import Sequence
 from typing import cast
+
+import astropy.io.fits
 import numpy as np
 
-from umbra.common import fits, coords, trackers
+from umbra.common import fits, coords
 from umbra.common.terminal import cprint
 from umbra import integration
+from umbra.common.typing import CheckStateCallback, ImageCallback
+
 
 # @trackers.track_info
 def main(
     # IO
-    registered_dir,
-    stacks_dir,
-    group_keywords,
+    registered_dir: str,
+    stacks_dir: str,
+    group_keywords: Sequence[str],
     # Outlier rejection
-    outlier_threshold,
+    outlier_threshold: float,
     # Moon rejection (optional, for sun-registered images)
-    moon_rejection=False,
-    extra_radius_pixels=None,
-    smoothness=None,
+    moon_rejection: bool = False,
+    extra_radius_pixels: float = 0,
+    smoothness: float = 0,
     # GUI interactions
     *,
-    img_callback=lambda img: None,
-    checkstate=lambda: None
-):
+    img_callback: ImageCallback = lambda _img: None,
+    checkstate: CheckStateCallback = lambda: None,
+) -> None:
     # Process each group
     grouped_filepaths = fits.get_grouped_filepaths(registered_dir, group_keywords)
     num_groups = len(grouped_filepaths)
@@ -53,7 +58,7 @@ def main(
         num_chunks = len(rows_ranges)
         
         # Process each chunk
-        headers = []
+        headers: list[astropy.io.fits.Header] = []
         for chunk_idx, (row_start, row_end) in enumerate(rows_ranges, start=1):
             cprint(f"Processing chunk {chunk_idx}/{num_chunks} (rows {row_start} -> {row_end})", style="bold")
             region = coords.Region(width=shape[1], height=row_end-row_start, left=0, top=row_start)

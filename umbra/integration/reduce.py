@@ -1,5 +1,4 @@
 import numpy as np
-from umbra.common.terminal import cprint
 
 def weighted_average_ignore_nan(
     stack: np.ndarray,

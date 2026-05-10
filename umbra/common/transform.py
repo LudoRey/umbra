@@ -1,6 +1,10 @@
+from collections.abc import Sequence
+from typing import cast
+
 import skimage as sk
 import numpy as np
 import cv2
+
 
 border_mode_dict = {
     'constant': cv2.BORDER_CONSTANT,
@@ -15,7 +19,11 @@ interp_mode_dict = {
     'lanczos4': cv2.INTER_LANCZOS4
 }
 
-def centered_rigid_transform(center, rotation, translation):
+def centered_rigid_transform(
+    center: np.ndarray | Sequence[float],
+    rotation: np.float64 | float,
+    translation: np.ndarray | Sequence[float],
+) -> sk.transform.EuclideanTransform:
     '''
     Rotate first around center, then translate.
     Rotation is the *counterclockwise* angle in radians (but remember that the y-axis is upside down in images!)
@@ -24,42 +32,48 @@ def centered_rigid_transform(center, rotation, translation):
     t_center = t_uncenter.inverse
     t_rotate = sk.transform.EuclideanTransform(rotation=rotation)
     t_translate = sk.transform.EuclideanTransform(translation=translation)
-    return t_center + t_rotate + t_uncenter + t_translate
+    return cast(sk.transform.EuclideanTransform, t_center + t_rotate + t_uncenter + t_translate)
 
-def translation_transform(translation):
+def translation_transform(translation: np.ndarray | Sequence[float]) -> sk.transform.EuclideanTransform:
     return sk.transform.EuclideanTransform(rotation=0, translation=translation)
 
-def warp(img: np.ndarray,
-         matrix: np.ndarray,
-         output_shape = None,
-         interp_mode = 'linear',
-         border_mode = 'constant',
-         border_value = 0):
-    
+def warp(
+    img: np.ndarray,
+    matrix: np.ndarray,
+    output_shape: tuple[int, int] | None = None,
+    interp_mode: str = 'linear',
+    border_mode: str = 'constant',
+    border_value: float = 0
+) -> np.ndarray:
     if output_shape is None:
-        output_shape = img.shape[0:2]
+        output_shape = (img.shape[0], img.shape[1])
+    resolved_output_shape = output_shape
+
+    border_value_scalar = (border_value,)
 
     if np.array_equal(matrix[2], [0,0,1]):
-        _warp = cv2.warpAffine # faster
-        matrix = matrix[:2] 
-    else:
-        _warp = cv2.warpPerspective
+        return cv2.warpAffine(img, matrix[:2], (resolved_output_shape[1], resolved_output_shape[0]),
+                              flags=interp_mode_dict[interp_mode],
+                              borderMode=border_mode_dict[border_mode],
+                              borderValue=border_value_scalar)
 
-    return _warp(img, matrix, (output_shape[1], output_shape[0]),
-                 flags=interp_mode_dict[interp_mode],
-                 borderMode=border_mode_dict[border_mode],
-                 borderValue=border_value)
+    return cv2.warpPerspective(img, matrix, (resolved_output_shape[1], resolved_output_shape[0]),
+                               flags=interp_mode_dict[interp_mode],
+                               borderMode=border_mode_dict[border_mode],
+                               borderValue=border_value_scalar)
 
-def warp_cart_to_polar(img: np.ndarray,
-                       center: tuple = None,
-                       output_shape: tuple = None,
-                       interp_mode = 'linear',
-                       log_scaling = False):
+def warp_cart_to_polar(
+    img: np.ndarray,
+    center: tuple[float, float] | None = None,
+    output_shape: tuple[int, int] | None = None,
+    interp_mode: str = 'linear',
+    log_scaling: bool = False
+) -> np.ndarray:
     # Set defaults
     input_shape = img.shape
-    if not output_shape:
-        output_shape = input_shape
-    if not center:
+    if output_shape is None:
+        output_shape = (input_shape[0], input_shape[1])
+    if center is None:
         center = (input_shape[1] // 2, input_shape[0] // 2)
     # Find maximum radius coordinate in input image
     corner_pts = np.array([[0, 0],[0, input_shape[1]],[input_shape[0], 0], [input_shape[0], input_shape[1]]])
@@ -83,14 +97,14 @@ def warp_cart_to_polar(img: np.ndarray,
     return img
     
 def warp_polar_to_cart(img: np.ndarray,
-                       center: tuple = None,
-                       output_shape: tuple = None,
-                       interp_mode = 'linear',
-                       log_scaling = False):
+                       center: tuple[float, float] | None = None,
+                       output_shape: tuple[int, int] | None = None,
+                       interp_mode: str = 'linear',
+                       log_scaling: bool = False) -> np.ndarray:
     # Set defaults
-    if not output_shape:
-        output_shape = img.shape
-    if not center:
+    if output_shape is None:
+        output_shape = (img.shape[0], img.shape[1])
+    if center is None:
         center = (output_shape[1] // 2, output_shape[0] // 2)
     # Find maximum radius coordinate in output image
     corner_pts = np.array([[0, 0],[0, output_shape[1]],[output_shape[0], 0], [output_shape[0], output_shape[1]]])

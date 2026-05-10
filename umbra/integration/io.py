@@ -1,11 +1,20 @@
+from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
 
+import astropy.io.fits
 import numpy as np
 from umbra.common import fits, coords
 from umbra.common.terminal import cprint
+from umbra.common.typing import CheckStateCallback
 
-def read_stack(filepaths: list[Path], region: coords.Region | None = None, *, checkstate):
+
+def read_stack(
+    filepaths: Sequence[Path | str],
+    region: coords.Region | None = None,
+    *,
+    checkstate: CheckStateCallback,
+) -> tuple[np.ndarray, list[astropy.io.fits.Header]]:
     N = len(filepaths)
     header = fits.read_fits_header(filepaths[0])
     W, H, C = cast(int, header["NAXIS1"]), cast(int, header["NAXIS2"]), cast(int, header["NAXIS3"])

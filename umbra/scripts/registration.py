@@ -1,4 +1,7 @@
 import os
+from collections.abc import Sequence
+from typing import cast
+
 import numpy as np
 import dateutil.parser
 import scipy.interpolate
@@ -6,27 +9,29 @@ import scipy.interpolate
 from umbra import registration
 from umbra.common import transform, interpolation, fits
 from umbra.common.terminal import cprint
+from umbra.common.typing import CheckStateCallback, ImageCallback
+
 
 def main(
     # IO
-    input_dir,
-    ref_filename,
-    anchor_filenames,
-    moon_registered_dir,
-    sun_registered_dir,
+    input_dir: str,
+    ref_filename: str,
+    anchor_filenames: Sequence[str],
+    moon_registered_dir: str,
+    sun_registered_dir: str,
     # Moon detection
-    image_scale,
-    clipped_factor,
-    edge_factor,
+    image_scale: float,
+    clipped_factor: float,
+    edge_factor: float,
     # Sun registration
-    sigma_high_pass_tangential,
-    max_iter,
+    sigma_high_pass_tangential: float,
+    max_iter: int,
     # GUI interactions
-    error_overlay_opacity,
-    *, 
-    img_callback=lambda img: None,
-    checkstate=lambda: None
-):
+    error_overlay_opacity: float,
+    *,
+    img_callback: ImageCallback = lambda _img: None,
+    checkstate: CheckStateCallback = lambda: None,
+) -> None:
     # Upper bound on the moon radius (coarse estimate used for threshold)
     moon_radius_pixels = 0.279 * 3600 / image_scale
     # Because of brightness variations, the multiplier should be large enough so that a complete annulus is clipped
@@ -36,19 +41,19 @@ def main(
 
     # Initialize trackers to store the alignment results of the anchors. They will be used to align all other images.
     # All quantities are given from the reference to the anchor; first element corresponds to the reference and is thus left at 0.
-    times = np.zeros(len(anchor_filenames)+1) # Elapsed time
-    thetas = np.zeros(len(anchor_filenames)+1) # Rotation angle
-    sun_moon_translations = np.zeros((len(anchor_filenames)+1, 2)) # Relative translation of the sun with respect to the moon 
+    times = np.zeros(len(anchor_filenames) + 1) # Elapsed time
+    thetas = np.zeros(len(anchor_filenames) + 1) # Rotation angle
+    sun_moon_translations = np.zeros((len(anchor_filenames) + 1, 2)) # Relative translation of the sun with respect to the moon
 
     # Load ref image
     ref_img, ref_header = fits.read_fits_as_float(os.path.join(input_dir, ref_filename), checkstate=checkstate)
     # Moon preprocessing and detection
     ref_processed_img = registration.moon.preprocess(ref_img, num_clipped_pixels, img_callback=img_callback, checkstate=checkstate)
     ref_moon_center, ref_moon_radius = registration.moon.detect_moon(ref_processed_img, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
-    
     # Sun preprocessing
     ref_processed_img, ref_mass_center = registration.sun.preprocess(ref_processed_img, ref_moon_center, ref_moon_radius, sigma_high_pass_tangential, img_callback=img_callback, checkstate=checkstate)
-    
+    # Extract reference time for later use in trackers
+    ref_time_str = cast(str, ref_header["DATE-OBS"])
     # Save image
     ref_header = fits.update_header(ref_header, registration.moon.keyword_cards(ref_moon_center, ref_moon_radius))
     fits.save_as_fits(ref_img, ref_header, os.path.join(moon_registered_dir, ref_filename), checkstate=checkstate)
@@ -60,7 +65,7 @@ def main(
         # Moon preprocessing and detection
         processed_img = registration.moon.preprocess(img, num_clipped_pixels, img_callback=img_callback, checkstate=checkstate)
         moon_center, moon_radius = registration.moon.detect_moon(processed_img, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
-        
+
         # Sun preprocessing
         processed_img, _ = registration.sun.preprocess(processed_img, moon_center, moon_radius, sigma_high_pass_tangential, img_callback=img_callback, checkstate=checkstate)
         # Compute transform parameters
@@ -71,7 +76,8 @@ def main(
         sun_tform = transform.centered_rigid_transform(ref_mass_center, theta, (tx,ty)) # ref to anchor
 
         # Update trackers
-        times[i] = (dateutil.parser.parse(header["DATE-OBS"]) - dateutil.parser.parse(ref_header["DATE-OBS"])).total_seconds()
+        time_str = cast(str, header["DATE-OBS"])
+        times[i] = (dateutil.parser.parse(time_str) - dateutil.parser.parse(ref_time_str)).total_seconds()
         thetas[i] = theta
         sun_moon_translations[i] = registration.sun.compute_sun_moon_translation(sun_tform, moon_tform)
         cprint(f"Reference -> Anchor {i}:", style='bold')
@@ -88,7 +94,7 @@ def main(
         fits.save_as_fits(moon_registered_img, moon_registered_header, os.path.join(moon_registered_dir, filename), checkstate=checkstate)
         fits.save_as_fits(sun_registered_img, sun_registered_header, os.path.join(sun_registered_dir, filename), checkstate=checkstate)
 
-    theta_interp = scipy.interpolate.interp1d(times, thetas, kind='linear', fill_value='extrapolate')
+    theta_interp = scipy.interpolate.interp1d(times, thetas, kind='linear', fill_value='extrapolate') # type: ignore (fill_value is mistyped as float)
     sun_moon_translation_interp = interpolation.LinearFitInterp(times, sun_moon_translations)
 
     # times_new = np.linspace(times.min(), times.max(), 100)
@@ -116,7 +122,8 @@ def main(
         moon_center, moon_radius = registration.moon.detect_moon(processed_img, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
         
         # Interpolate transform parameters
-        time = (dateutil.parser.parse(header["DATE-OBS"]) - dateutil.parser.parse(ref_header["DATE-OBS"])).total_seconds()
+        time_str = cast(str, header["DATE-OBS"])
+        time = (dateutil.parser.parse(time_str) - dateutil.parser.parse(ref_time_str)).total_seconds()
         theta = theta_interp(time).item() # interp1d's call method always returns an array, even if the input is not one
         sun_moon_translation = sun_moon_translation_interp(time)
 

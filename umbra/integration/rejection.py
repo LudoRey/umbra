@@ -1,4 +1,7 @@
-from typing import Callable
+from collections.abc import Callable
+from typing import cast
+
+import astropy.io.fits
 import numpy as np
 import bottleneck as bn
 
@@ -49,7 +52,7 @@ def outlier_rejection(
 
 def moon_rejection(
     stack: np.ndarray,
-    headers: list[dict],
+    headers: list[astropy.io.fits.Header],
     extra_radius_pixels: float,
     smoothness: float,
     region: coords.Region | None = None,
@@ -91,7 +94,7 @@ def moon_rejection(
     weights = np.zeros((N, H, W), dtype=stack.dtype)
     for i, header in enumerate(headers):
         # Compute moon weights and distance map
-        moon_x, moon_y, radius = header["MOON-X"], header["MOON-Y"], header["MOON-R"] + extra_radius_pixels
+        moon_x, moon_y, radius = cast(float, header["MOON-X"]), cast(float, header["MOON-Y"]), cast(float, header["MOON-R"]) + extra_radius_pixels
         dist_map = disk.distance_map(np.array([moon_x, moon_y]), region)
         if smoothness == 0:
             weights[i] = (dist_map > radius)
