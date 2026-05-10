@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import warnings
 import os
@@ -102,59 +104,51 @@ def intersect_headers(headers: list[astropy.io.fits.Header]):
 
     return astropy.io.fits.Header([card for card in headers[0].cards if hash_card(card) in common])
 
-def get_grouped_filepaths(dirname, keywords, output_format="collapsed_dict"):
-    # Based on an ordered list of keywords, group into a nested dict, then sort into an ordered dict, then collapse the nested_dict
-    # Example : keywords = ["EXPTIME", "ISOSPEED"]
-    # Output format options {"nested_dict", "collapsed_dict", "collapsed_list"}
-    # Nested dict structure : {"0.25": {"100": ["a", "b"]}, "1": {"100": ["c"], "200": ["d"]}}
-    # Collapsed dict structure : {("0.25","100"): ["a", "b"], ("1","100"): ["c"], ("1","200"): ["d"]}
-    # Collapsed list structure : [["a", "b"], ["c"], ["d"]]
+def get_grouped_filepaths(dirpath: Path | str, keywords: list[str]) -> dict[tuple[str, ...], list[Path]]:
+    """
+    Groups FITS filepaths in a directory according to the values of specified header keywords.
+
+    Example : for keywords = ["EXPTIME", "ISOSPEED"], the returned dict will have the following structure
+    {("0.25","100"): ["filename1.fits", "filename2.fits"], ("1","100"): ["filename3.fits"], ("1","200"): ["filename4.fits"]}
+    """
+    dirpath = Path(dirpath)
     nested_dict = {}
-    filenames = os.listdir(dirname) # not going into subfolders
-    for filename in filenames:
-        if filename.endswith(('.fits', '.fit')):
-            filepath = os.path.join(dirname, filename)
+    for p in dirpath.iterdir():
+        if p.is_file() and p.suffix in ('.fits', '.fit'):
+            filepath = p
             header = read_fits_header(filepath)
             # Create/access deepest level of nested dict
             sub_dict = nested_dict
             for keyword in keywords[:-1]:
-                key = format_keyword_value(header[keyword], keyword)
-                if key not in sub_dict.keys():
-                    sub_dict[key] = {}
-                sub_dict = sub_dict[key]
+                group_key = header[keyword]
+                if group_key not in sub_dict.keys():
+                    sub_dict[group_key] = {}
+                sub_dict = sub_dict[group_key]
             # Deepest level : sub_dict is a simple dict with filepaths lists as values, and last keyword values as keys (e.g. the ISO value)
             keyword = keywords[-1]
-            key = format_keyword_value(header[keyword], keyword)
-            if key in sub_dict.keys():
-                sub_dict[key].append(filepath)
+            group_key = header[keyword]
+            if group_key in sub_dict.keys():
+                sub_dict[group_key].append(filepath)
             else:
-                sub_dict[key] = [filepath]
+                sub_dict[group_key] = [filepath]
     # Sort nested dict
     nested_dict = sort_nested_dict(nested_dict)
     # Collapse dict
     collapsed_dict = collapse_nested_dict(nested_dict)
-    if output_format == "nested_dict":
-        return nested_dict
-    if output_format == "collapsed_dict":
-        return collapsed_dict
-    if output_format == "collapsed_list":
-        return [collapsed_dict[k] for k in collapsed_dict.keys()]
-    return ValueError('output_format must be one of {"nested_dict", "collapsed_dict", "collapsed_list"}')
-        
+    # Format keys
+    collapsed_dict = format_collapsed_dict_keys(collapsed_dict, keywords)
+    return collapsed_dict
 
-def sort_nested_dict(nested_dict, cvt_key_to_float=False):
-    # Sort by lexicographical order by default, where "10" < "2". This is usually not the expected behavior when keys are float.
+
+def sort_nested_dict(nested_dict: dict):
     for key in nested_dict.keys():
         if isinstance(nested_dict[key], dict):
-            nested_dict[key] = sort_nested_dict(nested_dict[key], cvt_key_to_float)
-    if cvt_key_to_float:
-        keymap = lambda kv: float(kv[0])
-    else:
-        keymap = lambda kv: kv[0]
-    nested_dict = dict(sorted(nested_dict.items(), key=keymap))
+            nested_dict[key] = sort_nested_dict(nested_dict[key])
+    nested_dict = dict(sorted(nested_dict.items()))
+
     return nested_dict
 
-def collapse_nested_dict(nested_dict):
+def collapse_nested_dict(nested_dict: dict):
     # We cant use lists as keys since they are not hashable, so we use tuples instead
     collapsed_dict = {}
     for key in nested_dict.keys():
@@ -162,9 +156,16 @@ def collapse_nested_dict(nested_dict):
             collapsed_subdict = collapse_nested_dict(nested_dict[key])
             for subkey in collapsed_subdict.keys():
                 collapsed_dict[(key,)+subkey] = collapsed_subdict[subkey] 
-        else: # in that case, nested_dict is a regular dict and only the keys need to be formatted
+        else: # in that case, nested_dict is a regular dict and only the keys need to be formatted into tuples
             collapsed_dict[(key,)] = nested_dict[key]
     return collapsed_dict
+
+def format_collapsed_dict_keys(collapsed_dict: dict, keywords: list[str]):
+    formatted_dict = {}
+    for key_tuple, value in collapsed_dict.items():
+        formatted_key_tuple = tuple(format_keyword_value(k, keywords[i]) for i, k in enumerate(key_tuple))
+        formatted_dict[formatted_key_tuple] = value
+    return formatted_dict
 
 def format_keyword(keyword):
     if keyword == "EXPTIME" or keyword == "EXPOSURE":
