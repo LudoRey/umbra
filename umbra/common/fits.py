@@ -105,33 +105,44 @@ def intersect_headers(headers: Sequence[astropy.io.fits.Header]):
 
     return astropy.io.fits.Header([card for card in headers[0].cards if hash_card(card) in common])
 
-def get_grouped_filepaths(dirpath: Path | str, keywords: Sequence[str]) -> dict[tuple[str, ...], list[Path]]:
+def read_fits_headers(dirpath: Path | str) -> dict[Path, astropy.io.fits.Header]:
     """
-    Groups FITS filepaths in a directory according to the values of specified header keywords.
+    Reads FITS headers for all FITS files in a directory.
+
+    Returns a dict mapping each filepath to its header.
+    """
+    dirpath = Path(dirpath)
+    return {
+        p: read_fits_header(p)
+        for p in dirpath.iterdir()
+        if p.is_file() and p.suffix in ('.fits', '.fit')
+    }
+
+def get_grouped_filepaths(filepath_headers: dict[Path, astropy.io.fits.Header], keywords: Sequence[str]) -> dict[tuple[str, ...], list[Path]]:
+    """
+    Groups FITS filepaths according to the values of specified header keywords.
+
+    Takes a dict of filepath -> header (e.g. from read_fits_headers) and a list of keywords.
 
     Example : for keywords = ["EXPTIME", "ISOSPEED"], the returned dict will have the following structure
     {("0.25","100"): ["filename1.fits", "filename2.fits"], ("1","100"): ["filename3.fits"], ("1","200"): ["filename4.fits"]}
     """
-    dirpath = Path(dirpath)
     nested_dict = {}
-    for p in dirpath.iterdir():
-        if p.is_file() and p.suffix in ('.fits', '.fit'):
-            filepath = p
-            header = read_fits_header(filepath)
-            # Create/access deepest level of nested dict
-            sub_dict = nested_dict
-            for keyword in keywords[:-1]:
-                group_key = header[keyword]
-                if group_key not in sub_dict.keys():
-                    sub_dict[group_key] = {}
-                sub_dict = sub_dict[group_key]
-            # Deepest level : sub_dict is a simple dict with filepaths lists as values, and last keyword values as keys (e.g. the ISO value)
-            keyword = keywords[-1]
+    for filepath, header in filepath_headers.items():
+        # Create/access deepest level of nested dict
+        sub_dict = nested_dict
+        for keyword in keywords[:-1]:
             group_key = header[keyword]
-            if group_key in sub_dict.keys():
-                sub_dict[group_key].append(filepath)
-            else:
-                sub_dict[group_key] = [filepath]
+            if group_key not in sub_dict.keys():
+                sub_dict[group_key] = {}
+            sub_dict = sub_dict[group_key]
+        # Deepest level : sub_dict is a simple dict with filepaths lists as values, and last keyword values as keys (e.g. the ISO value)
+        keyword = keywords[-1]
+        group_key = header[keyword]
+        if group_key in sub_dict.keys():
+            sub_dict[group_key].append(filepath)
+        else:
+            sub_dict[group_key] = [filepath]
     # Sort nested dict
     nested_dict = sort_nested_dict(nested_dict)
     # Collapse dict

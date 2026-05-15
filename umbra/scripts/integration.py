@@ -30,7 +30,8 @@ def main(
     checkstate: CheckStateCallback = lambda: None,
 ) -> None:
     # Process each group
-    grouped_filepaths = fits.get_grouped_filepaths(registered_dir, group_keywords)
+    filepath_headers = fits.read_fits_headers(registered_dir)
+    grouped_filepaths = fits.get_grouped_filepaths(filepath_headers, group_keywords)
     num_groups = len(grouped_filepaths)
     for group_idx, group_values in enumerate(grouped_filepaths.keys(), start=1):
         # Extract info about the group

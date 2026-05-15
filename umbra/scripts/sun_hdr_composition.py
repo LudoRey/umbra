@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-from umbra.common.fits import intersect_headers, remove_pedestal, read_fits_as_float, save_as_fits, get_grouped_filepaths, read_fits_header
+from umbra.common.fits import intersect_headers, remove_pedestal, read_fits_as_float, save_as_fits, get_grouped_filepaths, read_fits_header, read_fits_headers
 from umbra.common import coords
 from umbra.common.disk import binary_disk
 from umbra.hdr import saturation_weighting, equalize_brightness, compute_scaling_factor
@@ -24,7 +24,8 @@ def main(
     moon_radius_pixels = 0.279 * 3600 / image_scale # TODO: use header's MOON-R 
     moon_radius_pixels += extra_radius_pixels
 
-    grouped_filepaths = get_grouped_filepaths(sun_stacks_dir, group_keywords) # we need sorted files based on irradiance
+    filepath_headers = read_fits_headers(sun_stacks_dir)
+    grouped_filepaths = get_grouped_filepaths(filepath_headers, group_keywords) # we need sorted files based on irradiance
 
     # Initialize stuff
     ref_header = read_fits_header(grouped_filepaths[list(grouped_filepaths.keys())[0]][0])

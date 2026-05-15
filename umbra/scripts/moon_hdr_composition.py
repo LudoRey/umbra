@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-from umbra.common.fits import remove_pedestal, read_fits_as_float, save_as_fits, intersect_headers, read_fits_header, get_grouped_filepaths
+from umbra.common.fits import remove_pedestal, read_fits_as_float, save_as_fits, intersect_headers, read_fits_header, get_grouped_filepaths, read_fits_headers
 from umbra.hdr import saturation_weighting, compute_scaling_factor
 
 def main(
@@ -15,7 +15,8 @@ def main(
 ):
     os.makedirs(moon_hdr_dir, exist_ok=True)
 
-    grouped_filepaths = get_grouped_filepaths(moon_stacks_dir, group_keywords) # we need sorted files based on irradiance
+    filepath_headers = read_fits_headers(moon_stacks_dir)
+    grouped_filepaths = get_grouped_filepaths(filepath_headers, group_keywords) # we need sorted files based on irradiance
 
     # Initialize stuff
     ref_header = read_fits_header(grouped_filepaths[list(grouped_filepaths.keys())[0]][0])
