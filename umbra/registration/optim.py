@@ -1,7 +1,7 @@
 from collections.abc import Callable
+import warnings
 
 import numpy as np
-from umbra.common.terminal import cprint
 
 
 def get_descent_direction(g: np.ndarray, H: np.ndarray | None = None) -> np.ndarray:
@@ -84,7 +84,7 @@ def line_search_newton(
                         accepted = True
 
         if converged:
-            cprint("Optimization converged.", color='green')
+            print("Optimization converged.")
             return x
         # Accept step
         delta = alpha*p
@@ -92,5 +92,5 @@ def line_search_newton(
         f = f_next # reuse the value computed during backtracking
         # Callback
         callback(iter, x, delta, f)    
-    cprint("Maximum number of iterations reached. Optimization may have not converged.", color='yellow')
+    warnings.warn("Maximum number of iterations reached. Optimization may have not converged.")
     return x

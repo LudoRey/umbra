@@ -13,7 +13,7 @@ def select_reference(
     group_keywords: Sequence[str]
 ) -> str:
     """Returns the middle image (by timestamp) from the darkest exposure group."""
-    cprint("Selecting reference image:", style="bold")
+    cprint("Selecting reference image:", style="bold", color="cyan")
     filepath_headers = fits.read_fits_headers(input_dir)
     grouped_filepaths = fits.get_grouped_filepaths(filepath_headers, group_keywords)
     group_keyword_values, group_filepaths = next(iter(grouped_filepaths.items()))
@@ -23,6 +23,7 @@ def select_reference(
     reference_filename = middle_filepath.name
     print(f"Image from group {group_identifier}:")
     print(f"- {reference_filename}")
+    cprint(f"Reference image selected successfully.", color="green")
     return reference_filename
 
 def select_anchors(
@@ -36,7 +37,7 @@ def select_anchors(
     - A pixel is considered "bright" if its value is above `bright_relative_threshold` of the maximum pixel value in the image.
     Basically, it's a measure of how saturated the image is. Typically, num_bright_pixels is taken from num_clipped_pixels (see moon module)
     """
-    cprint("Selecting anchor images:", style="bold")
+    cprint("Selecting anchor images:", style="bold", color="cyan")
     filepath_headers = fits.read_fits_headers(input_dir)
     grouped_filepaths = fits.get_grouped_filepaths(filepath_headers, group_keywords)
     anchor_filenames = []
@@ -54,4 +55,5 @@ def select_anchors(
             break
     if not anchor_filenames:
         raise RuntimeError("Automatic anchor selection failed: no group found with a sufficient number of bright pixels. Please select anchors manually.")
+    cprint(f"Anchor images selected successfully.", color="green")
     return anchor_filenames

@@ -13,7 +13,7 @@ from umbra.common.terminal import cprint
 
 def read_fits_as_float(filepath: Path | str, region: coords.Region | None = None, verbose=True, *, checkstate=lambda: None):
     if verbose:
-        cprint(f"Opening {filepath}...", color="cyan")
+        cprint(f"Opening {filepath}...")
     # Open image/header
     with astropy.io.fits.open(filepath) as hdul:
         hdu = cast(astropy.io.fits.PrimaryHDU, hdul[0])
@@ -69,7 +69,7 @@ def extract_timestamp(header: astropy.io.fits.Header) -> float:
 
 def save_as_fits(img: np.ndarray, header: astropy.io.fits.Header | None, filepath: Path | str, convert_to_uint16=False, verbose=True, *, checkstate=lambda: None):
     if verbose:
-        cprint(f"Saving as {filepath}...", color="cyan")
+        cprint(f"Writing {filepath}...")
     if np.issubdtype(img.dtype, np.uint16):
         pass
     elif np.issubdtype(img.dtype, np.floating):
@@ -86,7 +86,7 @@ def save_as_fits(img: np.ndarray, header: astropy.io.fits.Header | None, filepat
 
 def read_fits_header(filepath: Path | str, verbose=False) -> astropy.io.fits.Header:
     if verbose:
-        cprint(f"Opening {filepath}...", color="cyan")
+        cprint(f"Opening {filepath}...")
     with astropy.io.fits.open(filepath) as hdul:
         hdu = cast(astropy.io.fits.PrimaryHDU, hdul[0])
         header = hdu.header
