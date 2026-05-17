@@ -55,8 +55,9 @@ def detect_moon(
     checkstate()
     img_callback(make_ransac_img(img, inliers_coords, outliers_coords))
     print(f"Found {len(inliers_coords)} inliers.")
-    cprint("Circle parameters :", color='green')
-    cprint(f"- Center : ({moon_x:.2f}, {moon_y:.2f})", f"- Radius : {moon_radius:.2f}", color="green", sep="\n")
+    print("Circle parameters:")
+    print(f"- Center: ({moon_x:.2f}, {moon_y:.2f})")
+    print(f"- Radius: {moon_radius:.2f}")
     
     return np.array([moon_x, moon_y]), float(moon_radius)
 

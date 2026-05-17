@@ -40,7 +40,7 @@ def main(
         header = fits.read_fits_header(filepaths[num_images // 2])
         shape = (cast(int, header["NAXIS2"]), cast(int, header["NAXIS1"]), cast(int, header["NAXIS3"])) # (H, W, C)
         group_identifier = ', '.join([f'{k}={v}' for k, v in zip(group_keywords, group_values)])
-        cprint(f"Stacking {num_images} images from group {group_idx}/{num_groups} ({group_identifier})", style="bold")
+        cprint(f"Stacking {num_images} images from group {group_identifier} ({group_idx}/{num_groups}):", style="bold", color="cyan")
             
         # Compute available memory
         safe_memory_fraction = 0.8
@@ -78,11 +78,12 @@ def main(
             del stack, weights
             gc.collect()
             
-        cprint(f"Finished stacking group {group_idx}/{num_groups}.", color="green")
         output_header = fits.intersect_headers(headers)
         group_name = " - ".join([f"{group_keywords[i]}_{group_values[i]}" for i in range(len(group_keywords))])
         fits.save_as_fits(img, output_header, os.path.join(stacks_dir, f"{group_name}.fits"), checkstate=checkstate)
         fits.save_as_fits(total_weights, None, os.path.join(stacks_dir, f"{group_name}_rejection.fits"), checkstate=checkstate)
+        cprint(f"Group {group_identifier} stacked successfully ({group_idx}/{num_groups}).", color="green")
+    cprint(f"Stacking completed successfully.", style='bold', color='green')
 
 if __name__ == "__main__":
     import sys
