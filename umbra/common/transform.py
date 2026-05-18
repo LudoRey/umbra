@@ -38,7 +38,7 @@ def centered_rigid_transform(
 def translation_transform(translation: np.ndarray | Sequence[float]) -> sk.transform.EuclideanTransform:
     return sk.transform.EuclideanTransform(rotation=0, translation=translation)
 
-def interp_transforms(
+def create_interp(
     timestamps: list[float],
     tforms: Sequence[sk.transform.EuclideanTransform],
 ) -> Callable[[float], sk.transform.EuclideanTransform]:

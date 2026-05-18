@@ -2,6 +2,7 @@ from pathlib import Path
 from collections.abc import Sequence
 from typing import Any, cast
 
+import dateutil
 import numpy as np
 import warnings
 import os
@@ -59,6 +60,12 @@ def remove_pedestal(img: np.ndarray, header: astropy.io.fits.Header) -> np.ndarr
         img = np.maximum(img, 0)
         header.remove("PEDESTAL")
     return img
+
+def extract_timestamp(header: astropy.io.fits.Header) -> float:
+    timestr = header["DATE-OBS"]
+    if timestr is None or not isinstance(timestr, str):
+        raise ValueError("FITS header does not contain a DATE-OBS keyword.")
+    return dateutil.parser.parse(timestr).timestamp()
 
 def save_as_fits(img: np.ndarray, header: astropy.io.fits.Header | None, filepath: Path | str, convert_to_uint16=False, verbose=True, *, checkstate=lambda: None):
     if verbose:

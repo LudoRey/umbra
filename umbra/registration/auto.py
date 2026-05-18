@@ -9,15 +9,16 @@ from umbra.common import fits
 from umbra.common.terminal import cprint
 
 def select_reference(
-    grouped_filepaths: dict[tuple[str, ...], list[Path]],
-    filepath_headers: dict[Path, astropy.io.fits.Header],
+    input_dir: Path,
     group_keywords: Sequence[str]
 ) -> str:
     """Returns the middle image (by timestamp) from the darkest exposure group."""
     cprint("Selecting reference image:", style="bold")
+    filepath_headers = fits.read_fits_headers(input_dir)
+    grouped_filepaths = fits.get_grouped_filepaths(filepath_headers, group_keywords)
     group_keyword_values, group_filepaths = next(iter(grouped_filepaths.items()))
     group_identifier = ', '.join([f'{k}={v}' for k, v in zip(group_keywords, group_keyword_values)])
-    sorted_filepaths = sorted(group_filepaths, key=lambda p: cast(str, filepath_headers[p]["DATE-OBS"]))
+    sorted_filepaths = sorted(group_filepaths, key=lambda p: fits.extract_timestamp(filepath_headers[p]))
     middle_filepath = sorted_filepaths[len(sorted_filepaths) // 2]
     reference_filename = middle_filepath.name
     print(f"Image from group {group_identifier}:")
@@ -25,8 +26,7 @@ def select_reference(
     return reference_filename
 
 def select_anchors(
-    grouped_filepaths: dict[tuple[str, ...], list[Path]],
-    filepath_headers: dict[Path, astropy.io.fits.Header],
+    input_dir: Path,
     group_keywords: Sequence[str],
     num_bright_pixels: float,
     bright_relative_threshold: float = 0.8
@@ -37,10 +37,12 @@ def select_anchors(
     Basically, it's a measure of how saturated the image is. Typically, num_bright_pixels is taken from num_clipped_pixels (see moon module)
     """
     cprint("Selecting anchor images:", style="bold")
+    filepath_headers = fits.read_fits_headers(input_dir)
+    grouped_filepaths = fits.get_grouped_filepaths(filepath_headers, group_keywords)
     anchor_filenames = []
     for group_keyword_values, group_filepaths in grouped_filepaths.items():
         group_identifier = ', '.join([f'{k}={v}' for k, v in zip(group_keywords, group_keyword_values)])
-        sorted_filepaths = sorted(group_filepaths, key=lambda p: cast(str, filepath_headers[p]["DATE-OBS"]))
+        sorted_filepaths = sorted(group_filepaths, key=lambda p: fits.extract_timestamp(filepath_headers[p]))
         first_filepath, last_filepath = sorted_filepaths[0], sorted_filepaths[-1]
         img, _ = fits.read_fits_as_float(first_filepath, verbose=False)
         bright_pixel_count = np.sum(img >= bright_relative_threshold * img.max())
