@@ -1,8 +1,9 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import cast
 
 import skimage as sk
 import numpy as np
+import scipy.interpolate
 import cv2
 
 
@@ -36,6 +37,25 @@ def centered_rigid_transform(
 
 def translation_transform(translation: np.ndarray | Sequence[float]) -> sk.transform.EuclideanTransform:
     return sk.transform.EuclideanTransform(rotation=0, translation=translation)
+
+def interp_transforms(
+    timestamps: list[float],
+    tforms: Sequence[sk.transform.EuclideanTransform],
+) -> Callable[[float], sk.transform.EuclideanTransform]:
+    '''
+    Component-wise linear interpolation (with linear extrapolation) of a sequence of
+    EuclideanTransforms indexed by Unix timestamps. Returns a callable timestamp -> EuclideanTransform.
+    '''
+    thetas = np.array([T.rotation for T in tforms])
+    translations = np.array([T.translation for T in tforms])  # (N, 2)
+    theta_interp = scipy.interpolate.interp1d(timestamps, thetas, kind='linear', fill_value='extrapolate') # type: ignore (fill_value is mistyped as float)
+    trans_interp = scipy.interpolate.interp1d(timestamps, translations, kind='linear', axis=0, fill_value='extrapolate') # type: ignore
+    def f(timestamp: float) -> sk.transform.EuclideanTransform:
+        return sk.transform.EuclideanTransform(
+            rotation=float(theta_interp(timestamp)),
+            translation=trans_interp(timestamp),
+        )
+    return f
 
 def warp(
     img: np.ndarray,

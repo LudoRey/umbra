@@ -5,9 +5,10 @@ from typing import cast
 import numpy as np
 import dateutil.parser
 import scipy.interpolate
+import skimage as sk
 
 from umbra import registration
-from umbra.common import transform, interpolation, fits
+from umbra.common import transform, fits
 from umbra.common.terminal import cprint
 from umbra.common.typing import CheckStateCallback, ImageCallback
 
@@ -39,52 +40,74 @@ def main(
     # The number of pixels that correspond to the edge of the moon (given here by its circonference times a multiplier)
     num_edge_pixels = edge_factor*2*np.pi*moon_radius_pixels
 
-    # Initialize trackers to store the alignment results of the anchors. They will be used to align all other images.
-    # All quantities are given from the reference to the anchor; first element corresponds to the reference and is thus left at 0.
-    times = np.zeros(len(anchor_filenames) + 1) # Elapsed time
-    thetas = np.zeros(len(anchor_filenames) + 1) # Rotation angle
-    sun_moon_translations = np.zeros((len(anchor_filenames) + 1, 2)) # Relative translation of the sun with respect to the moon
-
+    ### Process reference image
     # Load ref image
     ref_img, ref_header = fits.read_fits_as_float(os.path.join(input_dir, ref_filename), checkstate=checkstate)
     # Moon preprocessing and detection
     ref_processed_img = registration.moon.preprocess(ref_img, num_clipped_pixels, img_callback=img_callback, checkstate=checkstate)
     ref_moon_center, ref_moon_radius = registration.moon.detect_moon(ref_processed_img, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
-    # Sun preprocessing
-    ref_processed_img, ref_mass_center = registration.sun.preprocess(ref_processed_img, ref_moon_center, ref_moon_radius, sigma_high_pass_tangential, img_callback=img_callback, checkstate=checkstate)
-    # Extract reference time for later use in trackers
-    ref_time_str = cast(str, ref_header["DATE-OBS"])
+    # Extract reference time
+    ref_timestamp = dateutil.parser.parse(cast(str, ref_header["DATE-OBS"])).timestamp()
     # Save image
     ref_header = fits.update_header(ref_header, registration.moon.keyword_cards(ref_moon_center, ref_moon_radius))
     fits.save_as_fits(ref_img, ref_header, os.path.join(moon_registered_dir, ref_filename), checkstate=checkstate)
     fits.save_as_fits(ref_img, ref_header, os.path.join(sun_registered_dir, ref_filename), checkstate=checkstate)
 
-    for i, filename in enumerate(anchor_filenames, start=1):
-        # Load anchor image
+    ### Process anchor images
+    # Track per-anchor moon detection results and pairwise sun transforms
+    timestamps = []
+    moon_centers = []
+    moon_radii = []
+    sun_tforms_pairwise = []  # length N-1; index i: anchor[i] -> anchor[i+1]
+
+    prev_preprocessed_img: np.ndarray | None = None
+    prev_mass_center: tuple[float, float] | None = None
+    for i, filename in enumerate(anchor_filenames):
         img, header = fits.read_fits_as_float(os.path.join(input_dir, filename), checkstate=checkstate)
         # Moon preprocessing and detection
         processed_img = registration.moon.preprocess(img, num_clipped_pixels, img_callback=img_callback, checkstate=checkstate)
         moon_center, moon_radius = registration.moon.detect_moon(processed_img, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
 
         # Sun preprocessing
-        processed_img, _ = registration.sun.preprocess(processed_img, moon_center, moon_radius, sigma_high_pass_tangential, img_callback=img_callback, checkstate=checkstate)
-        # Compute transform parameters
-        theta, tx, ty = registration.sun.compute_transform(ref_processed_img, processed_img, ref_mass_center, max_iter, error_overlay_opacity, img_callback=img_callback, checkstate=checkstate)
-        
-        # Compute moon and sun transforms
-        moon_tform = transform.centered_rigid_transform(ref_moon_center, theta, moon_center-ref_moon_center) # ref to anchor
-        sun_tform = transform.centered_rigid_transform(ref_mass_center, theta, (tx,ty)) # ref to anchor
+        preprocessed_img, mass_center = registration.sun.preprocess(processed_img, moon_center, moon_radius, sigma_high_pass_tangential, img_callback=img_callback, checkstate=checkstate)
+        # Compute transform
+        if prev_preprocessed_img is not None and prev_mass_center is not None:
+            tform = registration.sun.compute_transform(prev_preprocessed_img, preprocessed_img, prev_mass_center, max_iter, error_overlay_opacity, img_callback=img_callback, checkstate=checkstate)
+            sun_tforms_pairwise.append(tform)
 
         # Update trackers
-        time_str = cast(str, header["DATE-OBS"])
-        times[i] = (dateutil.parser.parse(time_str) - dateutil.parser.parse(ref_time_str)).total_seconds()
-        thetas[i] = theta
-        sun_moon_translations[i] = registration.sun.compute_sun_moon_translation(sun_tform, moon_tform)
-        cprint(f"Reference -> Anchor {i}:", style='bold')
-        print(f"- Elapsed time      : {times[i]:>8.0f} sec")
-        print(f"- Rotation          : {np.rad2deg(thetas[i]):>8.3f} deg")
-        print(f"- Sun/moon delta (x): {sun_moon_translations[i][0]:>8.2f} px")
-        print(f"- Sun/moon delta (y): {sun_moon_translations[i][1]:>8.2f} px")
+        timestamps.append(dateutil.parser.parse(cast(str, header["DATE-OBS"])).timestamp())
+        moon_centers.append(moon_center)
+        moon_radii.append(moon_radius)
+
+        prev_preprocessed_img = preprocessed_img
+        prev_mass_center = mass_center
+
+    # Extract ref-relative transforms from pairwise transforms
+    identity = sk.transform.EuclideanTransform()
+    sun_tforms_from_anchor_zero = [identity]
+    for sun_tform_pairwise in sun_tforms_pairwise:
+        sun_tforms_from_anchor_zero.append(cast(sk.transform.EuclideanTransform, sun_tforms_from_anchor_zero[-1] + sun_tform_pairwise))
+    sun_tform_from_anchor_zero_to_ref = transform.interp_transforms(timestamps, sun_tforms_from_anchor_zero)(ref_timestamp)
+    sun_tforms = [
+        cast(sk.transform.EuclideanTransform, sun_tform_from_anchor_zero_to_ref.inverse + t)
+        for t in sun_tforms_from_anchor_zero
+    ]
+
+    # Compute moon transforms
+    moon_tforms = [
+        transform.centered_rigid_transform(ref_moon_center, float(t.rotation), moon_center-ref_moon_center)
+        for moon_center, t in zip(moon_centers, sun_tforms)
+    ]
+
+    for i, filename in enumerate(anchor_filenames):
+        # Load image
+        img, header = fits.read_fits_as_float(os.path.join(input_dir, filename), checkstate=checkstate)
+        # Retrieve computed values
+        moon_center = moon_centers[i]
+        moon_radius = moon_radii[i]
+        moon_tform = moon_tforms[i]
+        sun_tform = sun_tforms[i]
 
         # Apply transforms and save registered images
         moon_registered_img = transform.warp(img, moon_tform.inverse.params) # inverse required for anchor to ref
@@ -94,8 +117,14 @@ def main(
         fits.save_as_fits(moon_registered_img, moon_registered_header, os.path.join(moon_registered_dir, filename), checkstate=checkstate)
         fits.save_as_fits(sun_registered_img, sun_registered_header, os.path.join(sun_registered_dir, filename), checkstate=checkstate)
 
-    theta_interp = scipy.interpolate.interp1d(times, thetas, kind='linear', fill_value='extrapolate') # type: ignore (fill_value is mistyped as float)
-    sun_moon_translation_interp = interpolation.LinearFitInterp(times, sun_moon_translations)
+    # Compute interpolants
+    thetas = np.array([t.rotation for t in sun_tforms])
+    sun_moon_translations = np.array([
+        registration.sun.compute_sun_moon_translation(sun_tform, moon_tform)
+        for sun_tform, moon_tform in zip(sun_tforms, moon_tforms)
+    ])
+    theta_interp = scipy.interpolate.interp1d(timestamps, thetas, kind='linear', fill_value='extrapolate') # type: ignore (fill_value is mistyped as float)
+    sun_moon_translation_interp = scipy.interpolate.interp1d(timestamps, sun_moon_translations, kind='linear', axis=0, fill_value='extrapolate') # type: ignore
 
     # times_new = np.linspace(times.min(), times.max(), 100)
     # theta_new = theta_interp(times_new)
@@ -108,6 +137,7 @@ def main(
     # axes[1].plot(times, sun_moon_translations, 'o')
     # plt.show()
 
+    ### Register remaining images through interpolation
     filenames = os.listdir(input_dir)
     filenames = sorted(
         f for f in filenames
@@ -120,12 +150,10 @@ def main(
         # Moon preprocessing and detection
         processed_img = registration.moon.preprocess(img, num_clipped_pixels, img_callback=img_callback, checkstate=checkstate)
         moon_center, moon_radius = registration.moon.detect_moon(processed_img, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
-        
         # Interpolate transform parameters
-        time_str = cast(str, header["DATE-OBS"])
-        time = (dateutil.parser.parse(time_str) - dateutil.parser.parse(ref_time_str)).total_seconds()
-        theta = theta_interp(time).item() # interp1d's call method always returns an array, even if the input is not one
-        sun_moon_translation = sun_moon_translation_interp(time)
+        timestamp = dateutil.parser.parse(cast(str, header["DATE-OBS"])).timestamp()
+        theta = theta_interp(timestamp).item() # interp1d's call method always returns an array, even if the input is not one
+        sun_moon_translation = sun_moon_translation_interp(timestamp)
 
         # Compute moon and sun transforms
         moon_tform = transform.centered_rigid_transform(ref_moon_center, theta, moon_center-ref_moon_center)
