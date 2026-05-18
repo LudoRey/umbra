@@ -1,6 +1,7 @@
 import os
 from collections.abc import Sequence
 from typing import cast
+from pathlib import Path
 
 import numpy as np
 import dateutil.parser
@@ -16,10 +17,11 @@ from umbra.common.typing import CheckStateCallback, ImageCallback
 def main(
     # IO
     input_dir: str,
-    ref_filename: str,
-    anchor_filenames: Sequence[str],
+    ref_filename: str | None,
+    anchor_filenames: Sequence[str] | None,
     moon_registered_dir: str,
     sun_registered_dir: str,
+    group_keywords: Sequence[str],
     # Moon detection
     image_scale: float,
     clipped_factor: float,
@@ -40,7 +42,13 @@ def main(
     # The number of pixels that correspond to the edge of the moon (given here by its circonference times a multiplier)
     num_edge_pixels = edge_factor*2*np.pi*moon_radius_pixels
 
+    # Load and group filepaths by their keywords
+    filepath_headers = fits.read_fits_headers(input_dir)
+    grouped_filepaths = fits.get_grouped_filepaths(filepath_headers, group_keywords)
+
     ### Process reference image
+    if not ref_filename:
+        ref_filename = registration.auto.select_reference(grouped_filepaths, filepath_headers, group_keywords)
     # Load ref image
     ref_img, ref_header = fits.read_fits_as_float(os.path.join(input_dir, ref_filename), checkstate=checkstate)
     # Moon preprocessing and detection
@@ -54,6 +62,15 @@ def main(
     fits.save_as_fits(ref_img, ref_header, os.path.join(sun_registered_dir, ref_filename), checkstate=checkstate)
 
     ### Process anchor images
+    if not anchor_filenames:
+        anchor_filenames = registration.auto.select_anchors(grouped_filepaths, filepath_headers, group_keywords, num_clipped_pixels)
+    else:
+        if len(anchor_filenames) < 2:
+            raise ValueError("At least 2 anchors are required.")
+        anchor_filenames = sorted(
+            anchor_filenames,
+            key=lambda f: cast(str, filepath_headers[Path(os.path.join(input_dir, f))]["DATE-OBS"])
+        )
     # Track per-anchor moon detection results and pairwise sun transforms
     timestamps = []
     moon_centers = []
