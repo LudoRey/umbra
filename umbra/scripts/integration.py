@@ -90,7 +90,7 @@ if __name__ == "__main__":
     from umbra.common.terminal import ColorTerminalStream
     sys.stdout = ColorTerminalStream()
 
-    with open("config_custom.yaml") as f:
+    with open("config.yaml") as f:
         config = yaml.safe_load(f)
 
     main(**config["sun_integration"])
