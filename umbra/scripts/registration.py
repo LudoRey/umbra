@@ -1,8 +1,9 @@
 from collections.abc import Sequence
-from typing import cast
+import numpy as np
 from pathlib import Path
 
 from umbra.common import fits
+from umbra.common.terminal import cprint
 from umbra.common.typing import CheckStateCallback, ImageCallback
 from umbra.registration import pipeline
 
@@ -40,7 +41,7 @@ def main(
     fits.save_as_fits(ref_img, ref_moon_header, moon_registered_dir / ref_filename, checkstate=checkstate)
     fits.save_as_fits(ref_img, ref_sun_header, sun_registered_dir / ref_filename, checkstate=checkstate)
 
-    ### Anchor images
+    ### Compute interpolants from anchor images
     anchor_filenames = pipeline.resolve_anchor_filenames(anchor_filenames, input_dir, group_keywords, num_clipped_pixels)
     timestamps, moon_centers, moon_radii, sun_tforms_pairwise = pipeline.process_anchors(
         anchor_filenames, input_dir, num_clipped_pixels, num_edge_pixels,
@@ -49,23 +50,29 @@ def main(
     )
     sun_tforms = pipeline.compute_sun_transforms(timestamps, sun_tforms_pairwise, ref_timestamp)
     moon_tforms = pipeline.compute_moon_transforms(ref_moon_center, moon_centers, sun_tforms)
-    theta_interp, sun_moon_translation_interp = pipeline.build_interpolants(timestamps, sun_tforms, moon_tforms)
+    
+    rotations, sun_moon_translations = pipeline.extract_interpolation_inputs(sun_tforms, moon_tforms)
+    rotation_interp, sun_moon_translation_interp = pipeline.build_interpolants(timestamps, sun_moon_translations, rotations)
 
-    for i, filename in enumerate(anchor_filenames):
-        img, header = fits.read_fits_as_float(input_dir / filename, checkstate=checkstate)
-        moon_registered_img, moon_header, sun_registered_img, sun_header = pipeline.apply_transforms(
-            img, header, moon_centers[i], moon_radii[i], moon_tforms[i], sun_tforms[i],
-        )
-        fits.save_as_fits(moon_registered_img, moon_header, moon_registered_dir / filename, checkstate=checkstate)
-        fits.save_as_fits(sun_registered_img, sun_header, sun_registered_dir / filename, checkstate=checkstate)
-
-    ### Remaining images
+    ### Register anchor + remaining images
     remaining_filenames = pipeline.resolve_remaining_filenames(input_dir, ref_filename, anchor_filenames)
-    for filename in remaining_filenames:
+    for i, filename in enumerate(anchor_filenames + remaining_filenames):
         img, header = fits.read_fits_as_float(input_dir / filename, checkstate=checkstate)
-        _, moon_center, moon_radius = pipeline.preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
-        timestamp = fits.extract_timestamp(header)
-        moon_tform, sun_tform = pipeline.interp_transforms(timestamp, theta_interp, sun_moon_translation_interp, ref_moon_center, moon_center)
+        if filename in anchor_filenames:
+            moon_center, moon_radius = moon_centers[i], moon_radii[i]
+            cprint(f"Extracting anchor values:", style='bold')
+            timestamp = timestamps[i]
+            rotation, sun_moon_translation  = rotations[i], sun_moon_translations[i]
+        else:
+            _, moon_center, moon_radius = pipeline.preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
+            cprint(f"Interpolating anchor values:", style='bold')
+            timestamp = fits.extract_timestamp(header)
+            rotation, sun_moon_translation = pipeline.interpolate_values(timestamp, rotation_interp, sun_moon_translation_interp)
+        print(f"- Elapsed time      : {timestamp - ref_timestamp:>8.0f} sec")
+        print(f"- Rotation          : {np.rad2deg(rotation):>8.3f} deg")
+        print(f"- Sun-moon delta (x): {sun_moon_translation[0]:>8.2f} px")
+        print(f"- Sun-moon delta (y): {sun_moon_translation[1]:>8.2f} px")
+        moon_tform, sun_tform = pipeline.recreate_transforms(rotation, sun_moon_translation, ref_moon_center, moon_center)
         moon_registered_img, moon_header, sun_registered_img, sun_header = pipeline.apply_transforms(
             img, header, moon_center, moon_radius, moon_tform, sun_tform,
         )

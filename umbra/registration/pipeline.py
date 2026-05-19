@@ -178,37 +178,50 @@ def compute_moon_transforms(
         for moon_center, t in zip(moon_centers, sun_tforms)
     ]
 
-
-def build_interpolants(
-    timestamps: list[float],
+def extract_interpolation_inputs(
     sun_tforms: list[sk.transform.EuclideanTransform],
     moon_tforms: list[sk.transform.EuclideanTransform],
-) -> tuple:
-    """Build linear interpolants for rotation and sun-moon translation over anchor timestamps.
-
-    Returns (theta_interp, sun_moon_translation_interp).
-    """
-    thetas = np.array([t.rotation for t in sun_tforms])
+) -> tuple[np.ndarray, np.ndarray]:
+    """Extract rotation angles and sun-moon translation vectors for interpolation."""
+    rotations = np.array([t.rotation for t in sun_tforms])
     sun_moon_translations = np.array([
         registration.sun.compute_sun_moon_translation(sun_tform, moon_tform)
         for sun_tform, moon_tform in zip(sun_tforms, moon_tforms)
     ])
-    theta_interp = scipy.interpolate.interp1d(timestamps, thetas, kind="linear", fill_value="extrapolate")  # type: ignore
+    return rotations, sun_moon_translations
+
+def build_interpolants(
+    timestamps: list[float],
+    sun_moon_translations: np.ndarray,
+    rotations: np.ndarray,
+) -> tuple[scipy.interpolate.interp1d, scipy.interpolate.interp1d]:
+    """Build linear interpolants for rotation and sun-moon translation over anchor timestamps.
+
+    Returns (rotation_interp, sun_moon_translation_interp).
+    """
+    rotation_interp = scipy.interpolate.interp1d(timestamps, rotations, kind="linear", fill_value="extrapolate")  # type: ignore
     sun_moon_translation_interp = scipy.interpolate.interp1d(timestamps, sun_moon_translations, kind="linear", axis=0, fill_value="extrapolate")  # type: ignore
-    return theta_interp, sun_moon_translation_interp
+    return rotation_interp, sun_moon_translation_interp
 
-
-def interp_transforms(
+def interpolate_values(
     timestamp: float,
-    theta_interp: scipy.interpolate.interp1d,
+    rotation_interp: scipy.interpolate.interp1d,
     sun_moon_translation_interp: scipy.interpolate.interp1d,
+) -> tuple[float, np.ndarray]:
+    """Interpolate rotation and sun-moon translation for a given timestamp."""
+    rotation = rotation_interp(timestamp).item()
+    sun_moon_translation = sun_moon_translation_interp(timestamp)
+    return rotation, sun_moon_translation
+
+
+def recreate_transforms(
+    rotation: float,
+    sun_moon_translation: np.ndarray,
     ref_moon_center: np.ndarray,
     moon_center: np.ndarray,
 ) -> tuple[sk.transform.EuclideanTransform, sk.transform.EuclideanTransform]:
-    """Interpolate moon and sun transforms for a single image given its timestamp."""
-    theta = theta_interp(timestamp).item()
-    sun_moon_translation = sun_moon_translation_interp(timestamp)
-    moon_tform = transform.centered_rigid_transform(ref_moon_center, theta, moon_center - ref_moon_center)
+    """Recreate moon and sun transforms from given parameters."""
+    moon_tform = transform.centered_rigid_transform(ref_moon_center, rotation, moon_center - ref_moon_center)
     sun_tform = cast(sk.transform.EuclideanTransform, transform.translation_transform(sun_moon_translation) + moon_tform)
     return moon_tform, sun_tform
 
