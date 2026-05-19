@@ -90,7 +90,7 @@ def compute_transform(
     *,
     img_callback: ImageCallback,
     checkstate: CheckStateCallback,
-) -> tuple[float, float, float]:
+) -> sk.transform.EuclideanTransform:
     '''
     Returns the parameters of the estimated transform "ref_img -> img".
     This transform is parametrized as a rigid transform, where the center of rotation is ref_mass_center.
@@ -134,7 +134,7 @@ def compute_transform(
                                  max_iter=max_iter,
                                  callback=optim_callback)
     theta, tx, ty = obj.convert_x_to_params(x)
-    return theta, tx, ty
+    return transform.centered_rigid_transform(center=ref_mass_center, rotation=theta, translation=(tx,ty))
 
 def compute_sun_moon_translation(
     sun_tform: sk.transform.EuclideanTransform,

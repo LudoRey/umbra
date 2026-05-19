@@ -16,10 +16,11 @@ _shared:
 
 registration:
   input_dir: *input_dir
-  ref_filename: 'path\to\reference_image.fits'
-  anchor_filenames: ['path\to\anchor_image.fits']
+  ref_filename: 'path\to\reference_image.fits'    # or null to auto-select
+  anchor_filenames: ['path\to\anchor_image.fits'] # or null to auto-select
   moon_registered_dir: *moon_registered_dir
   sun_registered_dir: *sun_registered_dir
+  group_keywords: *group_keywords
   image_scale: *image_scale
   clipped_factor: 1.3
   edge_factor: 1.0
