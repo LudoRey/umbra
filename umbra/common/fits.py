@@ -2,7 +2,7 @@ from pathlib import Path
 from collections.abc import Sequence
 from typing import Any, cast
 
-import dateutil
+import dateutil.parser
 import numpy as np
 import warnings
 import os
