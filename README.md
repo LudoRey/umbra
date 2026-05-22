@@ -13,26 +13,6 @@ To use Umbra, download the appropriate `.zip` file for your operating system fro
 
 Note: some antivirus software may flag the executable as a false positive; if this happens, add it to your antivirus exclusion list.
 
-# Quick start
-
-The software should be self-explanatory : you can hover over almost any element to see a tooltip explaining its function. To make things even easier, this quick guide will help you get started.
-
-## Registration
-
-Before using Umbra for image registration, you must convert your (debayered) images to FITS format, and place them in a single folder. **Do not organize your images into subfolders**.
-
-
-1. Open the folder containing your FITS images.
-<img src="docs/assets/quick_start/open_folder.gif" width="100%">
-
-2. Select a reference <img src="docs/assets/quick_start/target.png" height="16px"> and an anchor <img src="docs/assets/quick_start/anchor.png" height="16px">. Hover over the fileviewer header icons to see tips on how to make your selection.
-<img src="docs/assets/quick_start/select_reference_and_anchor.gif" width="100%">
-
-3. Set your image scale and click on start.
-<img src="docs/assets/quick_start/set_image_scale_and_run.gif" width="100%">
-
-The registered images are saved in the folders specified by the options "Moon-registered folder" and "Sun-registered folder". By default, they are located in the parent folder of the input folder.
-
 # Join the Community
 
 Have questions, want to discuss solar eclipses, or get help with Umbra? 
