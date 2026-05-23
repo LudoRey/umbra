@@ -21,7 +21,7 @@ def preprocess(
     Expects a moon-preprocessed image as input.
     Returns both the image and the center of mass (later used as rotation center)
     '''
-    cprint("Preprocessing:", style='bold')
+    cprint("Sun preprocessing:", style='bold')
     # Hide moon
     print("Hiding moon...", end=" ", flush=True)
     img, mask = hide_moon(img, moon_center, moon_radius)

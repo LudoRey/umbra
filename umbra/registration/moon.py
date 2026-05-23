@@ -17,7 +17,7 @@ def preprocess(
     checkstate: CheckStateCallback,
     img_callback: ImageCallback,
 ) -> np.ndarray:
-    cprint("Preprocessing:", style='bold')
+    cprint("Moon preprocessing:", style='bold')
     # Convert to grayscale float32
     img = img.astype(np.float32)
     if len(img.shape) == 3:

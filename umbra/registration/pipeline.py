@@ -106,14 +106,14 @@ def process_anchors(
     *,
     img_callback: ImageCallback = lambda _img: None,
     checkstate: CheckStateCallback = lambda: None,
-) -> tuple[list[float], list[np.ndarray], list[float], list[sk.transform.EuclideanTransform]]:
-    """Load anchors, detect moon, compute sun preprocessing and pairwise sun transforms.
+) -> tuple[list[astropy.io.fits.Header], list[np.ndarray], list[float], list[sk.transform.EuclideanTransform]]:
+    """Load anchors, detect moon, and sun-align images.
 
     Processes anchors one at a time to avoid storing all preprocessed images simultaneously.
-    Returns (timestamps, moon_centers, moon_radii, sun_tforms_pairwise).
-    sun_tforms_pairwise has length N-1; index i maps anchor[i] -> anchor[i+1].
+    Returns (anchor_headers, moon_centers, moon_radii, sun_tforms_from_anchor_zero).
+    sun_tforms_from_anchor_zero has length N; index i maps anchor[0] -> anchor[i].
     """
-    timestamps: list[float] = []
+    anchor_headers: list[astropy.io.fits.Header] = []
     moon_centers: list[np.ndarray] = []
     moon_radii: list[float] = []
     sun_tforms_pairwise: list[sk.transform.EuclideanTransform] = []
@@ -138,25 +138,13 @@ def process_anchors(
             sun_tforms_pairwise.append(tform)
             cprint(f"Anchor transform {i} -> {i+1} computed successfully.", color='green')
 
-        timestamps.append(fits.extract_timestamp(header))
+        anchor_headers.append(header)
         moon_centers.append(moon_center)
         moon_radii.append(moon_radius)
 
         prev_preprocessed_img = preprocessed_img
         prev_mass_center = mass_center
 
-    return timestamps, moon_centers, moon_radii, sun_tforms_pairwise
-
-
-def compute_sun_transforms(
-    timestamps: list[float],
-    sun_tforms_pairwise: list[sk.transform.EuclideanTransform],
-    ref_timestamp: float,
-) -> list[sk.transform.EuclideanTransform]:
-    """Convert pairwise anchor transforms into ref-relative absolute transforms.
-
-    Returns one transform per anchor mapping that anchor -> ref frame.
-    """
     # Compute transforms to each anchor from the first anchor (anchor[0] is identity)
     identity = sk.transform.EuclideanTransform()
     sun_tforms_from_anchor_zero: list[sk.transform.EuclideanTransform] = [identity]
@@ -164,13 +152,26 @@ def compute_sun_transforms(
         sun_tforms_from_anchor_zero.append(
             cast(sk.transform.EuclideanTransform, sun_tforms_from_anchor_zero[-1] + tform_pairwise)
         )
-    # Compute transforms to ref from anchor zero, then to each anchor from ref
-    sun_tform_from_anchor_zero_to_ref = transform.create_interp(timestamps, sun_tforms_from_anchor_zero)(ref_timestamp)
+
+    return anchor_headers, moon_centers, moon_radii, sun_tforms_from_anchor_zero
+
+def interpolate_transforms(
+    tforms: list[sk.transform.EuclideanTransform],
+    timestamps: list[float],
+    new_timestamp: float,
+) -> sk.transform.EuclideanTransform:
+    return transform.create_interp(timestamps, tforms)(new_timestamp)
+
+def compute_sun_transforms(
+    sun_tform_from_anchor_zero_to_ref: sk.transform.EuclideanTransform,
+    sun_tforms_from_anchor_zero: list[sk.transform.EuclideanTransform],
+) -> list[sk.transform.EuclideanTransform]:
+    """Convert transforms relative to anchor 0 into transforms relative to the reference frame.
+    """
     return [
         cast(sk.transform.EuclideanTransform, sun_tform_from_anchor_zero_to_ref.inverse + t)
         for t in sun_tforms_from_anchor_zero
     ]
-
 
 def compute_moon_transforms(
     ref_moon_center: np.ndarray,
@@ -183,7 +184,7 @@ def compute_moon_transforms(
         for moon_center, t in zip(moon_centers, sun_tforms)
     ]
 
-def extract_interpolation_inputs(
+def extract_anchor_values(
     sun_tforms: list[sk.transform.EuclideanTransform],
     moon_tforms: list[sk.transform.EuclideanTransform],
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -195,7 +196,7 @@ def extract_interpolation_inputs(
     ])
     return rotations, sun_moon_translations
 
-def build_interpolants(
+def build_anchor_values_interpolants(
     timestamps: list[float],
     sun_moon_translations: np.ndarray,
     rotations: np.ndarray,
@@ -208,7 +209,7 @@ def build_interpolants(
     sun_moon_translation_interp = scipy.interpolate.interp1d(timestamps, sun_moon_translations, kind="linear", axis=0, fill_value="extrapolate")  # type: ignore
     return rotation_interp, sun_moon_translation_interp
 
-def interpolate_values(
+def interpolate_anchor_values(
     timestamp: float,
     rotation_interp: scipy.interpolate.interp1d,
     sun_moon_translation_interp: scipy.interpolate.interp1d,
