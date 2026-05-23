@@ -134,6 +134,8 @@ def get_grouped_filepaths(filepath_headers: dict[Path, astropy.io.fits.Header], 
     Example : for keywords = ["EXPTIME", "ISOSPEED"], the returned dict will have the following structure
     {("0.25","100"): ["filename1.fits", "filename2.fits"], ("1","100"): ["filename3.fits"], ("1","200"): ["filename4.fits"]}
     """
+    if len(keywords) == 0:
+        return {(): list(filepath_headers.keys())}
     nested_dict = {}
     for filepath, header in filepath_headers.items():
         # Create/access deepest level of nested dict

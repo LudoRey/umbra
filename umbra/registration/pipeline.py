@@ -28,12 +28,10 @@ def compute_moon_detection_params(
 def resolve_ref_filename(
     ref_filename: str | None,
     input_dir: Path,
-    group_keywords: Sequence[str] | None,
+    group_keywords: Sequence[str],
 ) -> str:
     """Return the reference filename, auto-selecting if not provided."""
     if not ref_filename:
-        if not group_keywords:
-            raise ValueError("Group keywords must be provided for automatic reference selection.")
         ref_filename = registration.auto.select_reference(input_dir, group_keywords)
     if not (input_dir / ref_filename).exists():
         raise ValueError(f"Reference file {ref_filename} does not exist in the input directory.")
@@ -45,14 +43,12 @@ def resolve_ref_filename(
 def resolve_anchor_filenames(
     anchor_filenames: Sequence[str] | None,
     input_dir: Path,
-    group_keywords: Sequence[str] | None,
+    group_keywords: Sequence[str],
     num_clipped_pixels: float,
 ) -> list[str]:
     """Return a validated, sorted list of anchor filenames."""
     filepath_headers = fits.read_fits_headers(input_dir)
     if not anchor_filenames:
-        if not group_keywords:
-            raise ValueError("Group keywords must be provided for automatic anchor selection.")
         return registration.auto.select_anchors(input_dir, group_keywords, num_clipped_pixels)
     if len(anchor_filenames) < 2:
         raise ValueError("At least 2 anchors are required.")

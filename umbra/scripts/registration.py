@@ -13,7 +13,7 @@ def main(
     input_dir: str | Path,
     ref_filename: str | None,
     anchor_filenames: Sequence[str] | None,
-    group_keywords: Sequence[str] | None,
+    group_keywords: Sequence[str],
     moon_registered_dir: str | Path,
     sun_registered_dir: str | Path,
     # Moon detection

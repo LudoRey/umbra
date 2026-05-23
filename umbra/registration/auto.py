@@ -1,8 +1,6 @@
 from collections.abc import Sequence
-from typing import cast
 from pathlib import Path
 
-import astropy.io.fits
 import numpy as np
 
 from umbra.common import fits
@@ -18,11 +16,12 @@ def select_reference(
     grouped_filepaths = fits.get_grouped_filepaths(filepath_headers, group_keywords)
     group_keyword_values, group_filepaths = next(iter(grouped_filepaths.items()))
     group_identifier = ', '.join([f'{k}={v}' for k, v in zip(group_keywords, group_keyword_values)])
+    if group_identifier:
+        cprint(f"Selected group: {group_identifier}")
     sorted_filepaths = sorted(group_filepaths, key=lambda p: fits.extract_timestamp(filepath_headers[p]))
     middle_filepath = sorted_filepaths[len(sorted_filepaths) // 2]
     reference_filename = middle_filepath.name
-    print(f"Image from group {group_identifier}:")
-    print(f"- {reference_filename}")
+    print(f"Selected reference image: {reference_filename}")
     cprint(f"Reference image selected successfully.", color="green")
     return reference_filename
 
@@ -48,9 +47,11 @@ def select_anchors(
         img, _ = fits.read_fits_as_float(first_filepath, verbose=False)
         bright_pixel_count = np.sum(img >= bright_relative_threshold * img.max())
         if bright_pixel_count >= num_bright_pixels:
+            if group_identifier:
+                cprint(f"Selected group: {group_identifier}")
             anchor_filepaths = [first_filepath, last_filepath]
             anchor_filenames = [p.name for p in anchor_filepaths]
-            print(f"Images from group {group_identifier}:")
+            print(f"Selected anchor images:")
             print("\n".join(f"- {p}" for p in anchor_filenames))
             break
     if not anchor_filenames:
