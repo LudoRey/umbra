@@ -54,7 +54,7 @@ def read_fits_as_float(filepath: Path | str, region: coords.Region | None = None
 
 def remove_pedestal(img: np.ndarray, header: astropy.io.fits.Header) -> np.ndarray:
     # Updates header in-place
-    pedestal = header["PEDESTAL"]
+    pedestal = header.get("PEDESTAL")
     if pedestal is not None and isinstance(pedestal, (int, float)):
         img = img - pedestal / 65535
         img = np.maximum(img, 0)
@@ -62,10 +62,10 @@ def remove_pedestal(img: np.ndarray, header: astropy.io.fits.Header) -> np.ndarr
     return img
 
 def extract_timestamp(header: astropy.io.fits.Header) -> float:
-    timestr = header["DATE-OBS"]
-    if timestr is None or not isinstance(timestr, str):
+    timestr = header.get("DATE-OBS")
+    if timestr is None:
         raise ValueError("FITS header does not contain a DATE-OBS keyword.")
-    return dateutil.parser.parse(timestr).timestamp()
+    return dateutil.parser.parse(cast(str, timestr)).timestamp()
 
 def save_as_fits(img: np.ndarray, header: astropy.io.fits.Header | None, filepath: Path | str, convert_to_uint16=False, verbose=True, *, checkstate=lambda: None):
     if verbose:
