@@ -18,7 +18,10 @@ def select_reference(
     group_identifier = ', '.join([f'{k}={v}' for k, v in zip(group_keywords, group_keyword_values)])
     if group_identifier:
         cprint(f"Selected group: {group_identifier}")
-    sorted_filepaths = sorted(group_filepaths, key=lambda p: fits.extract_timestamp(filepath_to_header[p]))
+    try:
+        sorted_filepaths = sorted(group_filepaths, key=lambda p: fits.extract_timestamp(filepath_to_header[p]))
+    except ValueError:
+        sorted_filepaths = sorted(group_filepaths) # fallback to sorting by filename if no timestamps are found
     middle_filepath = sorted_filepaths[len(sorted_filepaths) // 2]
     reference_filename = middle_filepath.name
     print(f"Selected reference image: {reference_filename}")

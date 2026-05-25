@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from typing import cast
 from pathlib import Path
+import warnings
 
 import astropy.io.fits
 import numpy as np
@@ -33,10 +34,8 @@ def resolve_ref_filename(
     """Return the reference filename, auto-selecting if not provided."""
     if not ref_filename:
         ref_filename = registration.auto.select_reference(input_dir, group_keywords)
-    if not (input_dir / ref_filename).exists():
-        raise ValueError(f"Reference file {ref_filename} does not exist in the input directory.")
-    if not ref_filename.endswith((".fits", ".fit")):
-        raise ValueError("Reference file must be a FITS file (.fits or .fit).")
+    else:
+        validate_filenames(input_dir, [ref_filename], "Reference")
     return ref_filename
 
 
@@ -47,20 +46,34 @@ def resolve_anchor_filenames(
     num_clipped_pixels: float,
 ) -> list[str]:
     """Return a validated, sorted list of anchor filenames."""
-    filepath_to_header = {p: fits.read_fits_header(p) for p in fits.list_fits_filepaths(input_dir)}
-    if not anchor_filenames:
-        return registration.auto.select_anchors(input_dir, group_keywords, num_clipped_pixels)
-    if len(anchor_filenames) < 2:
-        raise ValueError("At least 2 anchors are required.")
-    for filename in anchor_filenames:
+    filepaths = fits.list_fits_filepaths(input_dir)
+    filepath_to_header = {p: fits.read_fits_header(p) for p in filepaths}
+
+    try:
+        filepath_to_timestamp = {p: fits.extract_timestamp(header) for p, header in filepath_to_header.items()}
+    except ValueError:
+        warnings.warn("Could not extract timestamps from FITS headers. All images will be selected as anchors.")
+        resolved_anchor_filenames = [p.name for p in filepaths]
+
+    else:
+        if not anchor_filenames:
+            resolved_anchor_filenames = registration.auto.select_anchors(input_dir, group_keywords, num_clipped_pixels)
+        else:
+            resolved_anchor_filenames = sorted(anchor_filenames, key=lambda f: filepath_to_timestamp[input_dir / f])
+            if len(resolved_anchor_filenames) < 2:
+                raise ValueError("At least 2 anchors are required.")
+            validate_filenames(input_dir, resolved_anchor_filenames, "Anchor")
+
+    return resolved_anchor_filenames
+
+
+def validate_filenames(input_dir: Path, filenames: Sequence[str], file_type: str) -> None:
+    """Validate that all filenames exist in the input directory."""
+    for filename in filenames:
         if not (input_dir / filename).exists():
-            raise ValueError(f"Anchor file {filename} does not exist in the input directory.")
+            raise ValueError(f"{file_type} file {filename} does not exist in the input directory.")
         if not filename.endswith((".fits", ".fit")):
-            raise ValueError(f"Anchor file {filename} must be a FITS file (.fits or .fit).")
-    return sorted(
-        anchor_filenames,
-        key=lambda f: fits.extract_timestamp(filepath_to_header[input_dir / f]),
-    )
+            raise ValueError(f"{file_type} file {filename} must be a FITS file (.fits or .fit).")
 
 
 def resolve_remaining_filenames(
