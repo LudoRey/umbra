@@ -47,7 +47,7 @@ def resolve_anchor_filenames(
     num_clipped_pixels: float,
 ) -> list[str]:
     """Return a validated, sorted list of anchor filenames."""
-    filepath_headers = fits.read_fits_headers(input_dir)
+    filepath_to_header = {p: fits.read_fits_header(p) for p in fits.list_fits_filepaths(input_dir)}
     if not anchor_filenames:
         return registration.auto.select_anchors(input_dir, group_keywords, num_clipped_pixels)
     if len(anchor_filenames) < 2:
@@ -59,7 +59,7 @@ def resolve_anchor_filenames(
             raise ValueError(f"Anchor file {filename} must be a FITS file (.fits or .fit).")
     return sorted(
         anchor_filenames,
-        key=lambda f: fits.extract_timestamp(filepath_headers[input_dir / f]),
+        key=lambda f: fits.extract_timestamp(filepath_to_header[input_dir / f]),
     )
 
 

@@ -92,6 +92,14 @@ def read_fits_header(filepath: Path | str, verbose=False) -> astropy.io.fits.Hea
         header = hdu.header
     return header
 
+def list_fits_filepaths(dirpath: Path | str) -> list[Path]:
+    dirpath = Path(dirpath)
+    return [
+        p
+        for p in dirpath.iterdir()
+        if p.is_file() and p.suffix in ('.fits', '.fit')
+    ]
+
 def update_header(header: astropy.io.fits.Header, cards: Sequence[astropy.io.fits.Card], in_place=False):
     header = astropy.io.fits.Header(header, copy = not in_place)
     header.extend(cards, strip=False, update=True)
@@ -112,32 +120,19 @@ def intersect_headers(headers: Sequence[astropy.io.fits.Header]):
 
     return astropy.io.fits.Header([card for card in headers[0].cards if hash_card(card) in common])
 
-def read_fits_headers(dirpath: Path | str) -> dict[Path, astropy.io.fits.Header]:
-    """
-    Reads FITS headers for all FITS files in a directory.
-
-    Returns a dict mapping each filepath to its header.
-    """
-    dirpath = Path(dirpath)
-    return {
-        p: read_fits_header(p)
-        for p in dirpath.iterdir()
-        if p.is_file() and p.suffix in ('.fits', '.fit')
-    }
-
-def get_grouped_filepaths(filepath_headers: dict[Path, astropy.io.fits.Header], keywords: Sequence[str]) -> dict[tuple[str, ...], list[Path]]:
+def get_grouped_filepaths(filepath_to_header: dict[Path, astropy.io.fits.Header], keywords: Sequence[str]) -> dict[tuple[str, ...], list[Path]]:
     """
     Groups FITS filepaths according to the values of specified header keywords.
 
-    Takes a dict of filepath -> header (e.g. from read_fits_headers) and a list of keywords.
+    Takes a dict of filepath -> header and a list of keywords.
 
     Example : for keywords = ["EXPTIME", "ISOSPEED"], the returned dict will have the following structure
     {("0.25","100"): ["filename1.fits", "filename2.fits"], ("1","100"): ["filename3.fits"], ("1","200"): ["filename4.fits"]}
     """
     if len(keywords) == 0:
-        return {(): list(filepath_headers.keys())}
+        return {(): list(filepath_to_header.keys())}
     nested_dict = {}
-    for filepath, header in filepath_headers.items():
+    for filepath, header in filepath_to_header.items():
         # Create/access deepest level of nested dict
         sub_dict = nested_dict
         for keyword in keywords[:-1]:
