@@ -3,6 +3,7 @@
 #          *anchor_name       (reference an anchor)
 
 _shared:
+  - &images_dir 'path\to\images'
   - &fits_dir 'path\to\fits'
   - &moon_registered_dir 'path\to\moon_registered'
   - &sun_registered_dir 'path\to\sun_registered'
@@ -13,6 +14,10 @@ _shared:
   - &merged_hdr_dir 'path\to\merged_hdr'
   - &group_keywords ["EXPTIME"]
   - &image_scale 1.00
+
+conversion:
+  images_dir: *images_dir
+  fits_dir: *fits_dir
 
 registration:
   fits_dir: *fits_dir

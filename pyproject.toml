@@ -16,4 +16,7 @@ dependencies = [
     "python-dateutil==2.9.0.post0",
     "psutil==7.1.0",
     "bottleneck==1.6.0",
+    "pillow>=11.0",
+    "rawpy>=0.25",
+    "exifread>=3.3",
 ]
