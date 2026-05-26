@@ -17,6 +17,7 @@ def read_fits_as_float(filepath: Path | str, region: coords.Region | None = None
     # Open image/header
     with astropy.io.fits.open(filepath) as hdul:
         hdu = cast(astropy.io.fits.PrimaryHDU, hdul[0])
+        hdu.verify('silentfix')
         header = hdu.header
         data = hdu.data
         if not isinstance(data, np.ndarray):
@@ -89,6 +90,7 @@ def read_fits_header(filepath: Path | str, verbose=False) -> astropy.io.fits.Hea
         cprint(f"Opening {filepath}...")
     with astropy.io.fits.open(filepath) as hdul:
         hdu = cast(astropy.io.fits.PrimaryHDU, hdul[0])
+        hdu.verify('silentfix')
         header = hdu.header
     return header
 
