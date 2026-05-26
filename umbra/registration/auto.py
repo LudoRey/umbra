@@ -7,12 +7,12 @@ from umbra.common import fits
 from umbra.common.terminal import cprint
 
 def select_reference(
-    input_dir: Path,
+    fits_dir: Path,
     group_keywords: Sequence[str]
 ) -> str:
     """Returns the middle image (by timestamp) from the darkest exposure group."""
     cprint("Selecting reference image:", style="bold", color="cyan")
-    filepath_to_header = {p: fits.read_fits_header(p) for p in fits.list_fits_filepaths(input_dir)}
+    filepath_to_header = {p: fits.read_fits_header(p) for p in fits.list_fits_filepaths(fits_dir)}
     grouped_filepaths = fits.get_grouped_filepaths(filepath_to_header, group_keywords)
     group_keyword_values, group_filepaths = next(iter(grouped_filepaths.items()))
     group_identifier = ', '.join([f'{k}={v}' for k, v in zip(group_keywords, group_keyword_values)])
@@ -29,7 +29,7 @@ def select_reference(
     return reference_filename
 
 def select_anchors(
-    input_dir: Path,
+    fits_dir: Path,
     group_keywords: Sequence[str],
     num_bright_pixels: float,
     bright_relative_threshold: float = 0.8
@@ -40,7 +40,7 @@ def select_anchors(
     Basically, it's a measure of how saturated the image is. Typically, num_bright_pixels is taken from num_clipped_pixels (see moon module)
     """
     cprint("Selecting anchor images:", style="bold", color="cyan")
-    filepath_to_header = {p: fits.read_fits_header(p) for p in fits.list_fits_filepaths(input_dir)}
+    filepath_to_header = {p: fits.read_fits_header(p) for p in fits.list_fits_filepaths(fits_dir)}
     grouped_filepaths = fits.get_grouped_filepaths(filepath_to_header, group_keywords)
     anchor_filenames = []
     for group_keyword_values, group_filepaths in grouped_filepaths.items():

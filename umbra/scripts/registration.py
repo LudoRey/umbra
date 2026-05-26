@@ -10,7 +10,7 @@ from umbra.registration import pipeline
 
 def main(
     # IO
-    input_dir: str | Path,
+    fits_dir: str | Path,
     ref_filename: str | None,
     anchor_filenames: Sequence[str] | None,
     group_keywords: Sequence[str],
@@ -30,22 +30,22 @@ def main(
     checkstate: CheckStateCallback = lambda: None,
 ) -> None:
     num_clipped_pixels, num_edge_pixels = pipeline.compute_moon_detection_params(image_scale, clipped_factor, edge_factor)
-    input_dir, moon_registered_dir, sun_registered_dir = map(Path, (input_dir, moon_registered_dir, sun_registered_dir))
+    fits_dir, moon_registered_dir, sun_registered_dir = map(Path, (fits_dir, moon_registered_dir, sun_registered_dir))
 
-    ref_filename = pipeline.resolve_ref_filename(ref_filename, input_dir, group_keywords)
-    anchor_filenames = pipeline.resolve_anchor_filenames(anchor_filenames, input_dir, group_keywords, num_clipped_pixels)
-    remaining_filenames = pipeline.resolve_remaining_filenames(input_dir, ref_filename, anchor_filenames)
+    ref_filename = pipeline.resolve_ref_filename(ref_filename, fits_dir, group_keywords)
+    anchor_filenames = pipeline.resolve_anchor_filenames(anchor_filenames, fits_dir, group_keywords, num_clipped_pixels)
+    remaining_filenames = pipeline.resolve_remaining_filenames(fits_dir, ref_filename, anchor_filenames)
 
     ### Process anchor images: compute sun transforms and other values
     anchor_headers, moon_centers, moon_radii, sun_tforms_from_first_anchor = pipeline.process_anchors(
-        anchor_filenames, input_dir, num_clipped_pixels, num_edge_pixels,
+        anchor_filenames, fits_dir, num_clipped_pixels, num_edge_pixels,
         sigma_high_pass_tangential, max_iter, error_overlay_opacity,
         img_callback=img_callback, checkstate=checkstate,
     )
 
     ### Process reference image and compute sun transform from first anchor to reference
     cprint(f"Processing reference image: {ref_filename}", style='bold', color='cyan')
-    ref_img, ref_header = fits.read_fits_as_float(input_dir / ref_filename, checkstate=checkstate)
+    ref_img, ref_header = fits.read_fits_as_float(fits_dir / ref_filename, checkstate=checkstate)
     if ref_filename not in anchor_filenames:
         _, ref_moon_center, ref_moon_radius = pipeline.preprocess_and_detect_moon(ref_img, num_clipped_pixels, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
         ref_timestamp = fits.extract_timestamp(ref_header)
@@ -69,7 +69,7 @@ def main(
     ### Register anchor images using precomputed values
     for i, filename in enumerate(anchor_filenames):
         cprint(f"Registering anchor image {filename} ({i+1}/{len(anchor_filenames)}):", style='bold', color='cyan')
-        img, header = fits.read_fits_as_float(input_dir / filename, checkstate=checkstate)
+        img, header = fits.read_fits_as_float(fits_dir / filename, checkstate=checkstate)
         moon_center, moon_radius = moon_centers[i], moon_radii[i]
         cprint(f"Extracting anchor values:", style='bold')
         rotation, sun_moon_translation  = rotations[i], sun_moon_translations[i]
@@ -91,7 +91,7 @@ def main(
         rotation_interp, sun_moon_translation_interp = pipeline.build_anchor_values_interpolants(anchor_timestamps, sun_moon_translations, rotations)
         for i, filename in enumerate(remaining_filenames):
             cprint(f"Registering non-anchor image {filename} ({i+1}/{len(remaining_filenames)}):", style='bold', color='cyan')
-            img, header = fits.read_fits_as_float(input_dir / filename, checkstate=checkstate)
+            img, header = fits.read_fits_as_float(fits_dir / filename, checkstate=checkstate)
             _, moon_center, moon_radius = pipeline.preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
             cprint(f"Interpolating:", style='bold')
             timestamp = fits.extract_timestamp(header)

@@ -26,14 +26,14 @@ pip install -e .
 The main scripts are located in `umbra/scripts`. All parameters are defined in the configuration file `config.example.yaml`: you should copy this file to `config.yaml` and change the parameters as needed!
 
 Some parameters are shared among different scripts, and are defined at the top of `config.yaml`:
-- `input_dir`, `moon_registered_dir`, `sun_registered_dir`, `moon_stacks_dir`, `sun_stacks_dir`, `moon_stacks_dir`, `sun_stacks_dir`, `moon_hdr_dir`, `sun_hdr_dir`, `merged_hdr_dir` : Input/output directories for the scripts.
+- `fits_dir`, `moon_registered_dir`, `sun_registered_dir`, `moon_stacks_dir`, `sun_stacks_dir`, `moon_stacks_dir`, `sun_stacks_dir`, `moon_hdr_dir`, `sun_hdr_dir`, `merged_hdr_dir` : Input/output directories for the scripts.
 - `image_scale` : Resolution in arcseconds/pixel.
 - `group_keywords` : List of FITS keywords corresponding to settings that vary across the exposures (typically, "EXPTIME" and optionally "ISOSPEED" or "GAIN" if the gain was changed). These keywords will automatically determine groups of images to be stacked together.
 
 
 ## Registration
 
-The script `registration.py` simultaneously performs a moon-based and a sun-based registration of the input images located in `input_dir`. The input images should be calibrated, debayered and converted to FITS format (16-bit unsigned integer or floating point preferably). The registration algorithm uses the following parameters:
+The script `registration.py` simultaneously performs a moon-based and a sun-based registration of the input images located in `fits_dir`. The input images should be calibrated, debayered and converted to FITS format (16-bit unsigned integer or floating point preferably). The registration algorithm uses the following parameters:
 - `ref_filename` : The <b>reference image</b> determines the position of the moon and sun in the registered images. Can be left to null for automatic selection, or set to the filename of one of the input images. To ensure good results later on, the reference image should be a short exposure image.
 - `anchor_filenames` : The <b>anchor images</b> are the only images that will be aligned together directly through the sun registration algorithm. The other images will be aligned by first detecting the moon and then interpolating the relative position of the sun with respect to the moon. Can be left to null for automatic selection, or set to a list of filenames. At least two anchor images are required. They should be spread as far apart in time as possible and have the same camera settings: ideally, such that the inner solar corona is clipped.
 - `clipped_factor` : In order to easily detect the moon's border, the bright pixels surrounding the moon are clipped first, if they are not already. This parameter determines <b>the number of clipped pixels</b>. Increase to make the moon's border more defined. Decrease to prevent noise amplification (which may interfere with the edge detection algorithm). The number of clipped pixels is computed as the area of an annulus around the moon, where the outer radius is given by the moon radius, multiplied by the clipped factor.

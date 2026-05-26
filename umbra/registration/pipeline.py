@@ -28,25 +28,25 @@ def compute_moon_detection_params(
 
 def resolve_ref_filename(
     ref_filename: str | None,
-    input_dir: Path,
+    fits_dir: Path,
     group_keywords: Sequence[str],
 ) -> str:
     """Return the reference filename, auto-selecting if not provided."""
     if not ref_filename:
-        ref_filename = registration.auto.select_reference(input_dir, group_keywords)
+        ref_filename = registration.auto.select_reference(fits_dir, group_keywords)
     else:
-        validate_filenames(input_dir, [ref_filename], "Reference")
+        validate_filenames(fits_dir, [ref_filename], "Reference")
     return ref_filename
 
 
 def resolve_anchor_filenames(
     anchor_filenames: Sequence[str] | None,
-    input_dir: Path,
+    fits_dir: Path,
     group_keywords: Sequence[str],
     num_clipped_pixels: float,
 ) -> list[str]:
     """Return a validated, sorted list of anchor filenames."""
-    filepaths = fits.list_fits_filepaths(input_dir)
+    filepaths = fits.list_fits_filepaths(fits_dir)
     filepath_to_header = {p: fits.read_fits_header(p) for p in filepaths}
 
     try:
@@ -57,33 +57,33 @@ def resolve_anchor_filenames(
 
     else:
         if not anchor_filenames:
-            resolved_anchor_filenames = registration.auto.select_anchors(input_dir, group_keywords, num_clipped_pixels)
+            resolved_anchor_filenames = registration.auto.select_anchors(fits_dir, group_keywords, num_clipped_pixels)
         else:
-            resolved_anchor_filenames = sorted(anchor_filenames, key=lambda f: filepath_to_timestamp[input_dir / f])
+            resolved_anchor_filenames = sorted(anchor_filenames, key=lambda f: filepath_to_timestamp[fits_dir / f])
             if len(resolved_anchor_filenames) < 2:
                 raise ValueError("At least 2 anchors are required.")
-            validate_filenames(input_dir, resolved_anchor_filenames, "Anchor")
+            validate_filenames(fits_dir, resolved_anchor_filenames, "Anchor")
 
     return resolved_anchor_filenames
 
 
-def validate_filenames(input_dir: Path, filenames: Sequence[str], file_type: str) -> None:
+def validate_filenames(fits_dir: Path, filenames: Sequence[str], file_type: str) -> None:
     """Validate that all filenames exist in the input directory."""
     for filename in filenames:
-        if not (input_dir / filename).exists():
+        if not (fits_dir / filename).exists():
             raise ValueError(f"{file_type} file {filename} does not exist in the input directory.")
         if not filename.endswith((".fits", ".fit")):
             raise ValueError(f"{file_type} file {filename} must be a FITS file (.fits or .fit).")
 
 
 def resolve_remaining_filenames(
-    input_dir: Path,
+    fits_dir: Path,
     ref_filename: str,
     anchor_filenames: Sequence[str],
 ) -> list[str]:
-    """Return sorted filenames of non-ref, non-anchor FITS files in input_dir."""
+    """Return sorted filenames of non-ref, non-anchor FITS files in fits_dir."""
     return sorted(
-        p.name for p in input_dir.iterdir()
+        p.name for p in fits_dir.iterdir()
         if p.suffix in (".fits", ".fit")
         and p.name != ref_filename
         and p.name not in anchor_filenames
@@ -106,7 +106,7 @@ def preprocess_and_detect_moon(
 
 def process_anchors(
     anchor_filenames: list[str],
-    input_dir: Path,
+    fits_dir: Path,
     num_clipped_pixels: float,
     num_edge_pixels: float,
     sigma_high_pass_tangential: float,
@@ -132,7 +132,7 @@ def process_anchors(
 
     for i, filename in enumerate(anchor_filenames):
         cprint(f"Processing anchor image {filename} ({i+1}/{len(anchor_filenames)}):", style='bold', color='cyan')
-        img, header = fits.read_fits_as_float(input_dir / filename, checkstate=checkstate)
+        img, header = fits.read_fits_as_float(fits_dir / filename, checkstate=checkstate)
         img, moon_center, moon_radius = preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, checkstate=checkstate, img_callback=img_callback)
         preprocessed_img, mass_center = registration.sun.preprocess(img, moon_center, moon_radius, sigma_high_pass_tangential, img_callback=img_callback, checkstate=checkstate)
         cprint(f"Anchor image {filename} processed successfully ({i+1}/{len(anchor_filenames)}).", color='green')
