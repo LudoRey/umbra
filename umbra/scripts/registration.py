@@ -37,32 +37,32 @@ def main(
     remaining_filenames = pipeline.resolve_remaining_filenames(input_dir, ref_filename, anchor_filenames)
 
     ### Process anchor images: compute sun transforms and other values
-    anchor_headers, moon_centers, moon_radii, sun_tforms_from_anchor_zero = pipeline.process_anchors(
+    anchor_headers, moon_centers, moon_radii, sun_tforms_from_first_anchor = pipeline.process_anchors(
         anchor_filenames, input_dir, num_clipped_pixels, num_edge_pixels,
         sigma_high_pass_tangential, max_iter, error_overlay_opacity,
         img_callback=img_callback, checkstate=checkstate,
     )
 
-    ### Process reference image and compute sun transform from anchor zero to reference
+    ### Process reference image and compute sun transform from first anchor to reference
     cprint(f"Processing reference image: {ref_filename}", style='bold', color='cyan')
     ref_img, ref_header = fits.read_fits_as_float(input_dir / ref_filename, checkstate=checkstate)
     if ref_filename not in anchor_filenames:
         _, ref_moon_center, ref_moon_radius = pipeline.preprocess_and_detect_moon(ref_img, num_clipped_pixels, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
         ref_timestamp = fits.extract_timestamp(ref_header)
         anchor_timestamps = [fits.extract_timestamp(header) for header in anchor_headers]
-        sun_tform_from_anchor_zero_to_ref = pipeline.interpolate_transforms(sun_tforms_from_anchor_zero, anchor_timestamps, ref_timestamp)
+        sun_tform_from_first_anchor_to_ref = pipeline.interpolate_transforms(sun_tforms_from_first_anchor, anchor_timestamps, ref_timestamp)
     else:
         cprint(f"Reference image is also an anchor. Extracting precomputed values.")
         anchor_index = anchor_filenames.index(ref_filename)
         ref_moon_center, ref_moon_radius = moon_centers[anchor_index], moon_radii[anchor_index]
-        sun_tform_from_anchor_zero_to_ref = sun_tforms_from_anchor_zero[anchor_index]
+        sun_tform_from_first_anchor_to_ref = sun_tforms_from_first_anchor[anchor_index]
     ref_moon_header, ref_sun_header = pipeline.update_headers(ref_header, ref_moon_center, ref_moon_radius)
     fits.save_as_fits(ref_img, ref_moon_header, moon_registered_dir / ref_filename, checkstate=checkstate)
     fits.save_as_fits(ref_img, ref_sun_header, sun_registered_dir / ref_filename, checkstate=checkstate)
     cprint(f"Reference image processed successfully.", color='green')
 
     ### Compute transforms from reference to anchors, and extract anchor values (rotations and sun-moon translations)
-    sun_tforms = pipeline.compute_sun_transforms(sun_tform_from_anchor_zero_to_ref, sun_tforms_from_anchor_zero)
+    sun_tforms = pipeline.compute_sun_transforms(sun_tform_from_first_anchor_to_ref, sun_tforms_from_first_anchor)
     moon_tforms = pipeline.compute_moon_transforms(ref_moon_center, moon_centers, sun_tforms)
     rotations, sun_moon_translations = pipeline.extract_anchor_values(sun_tforms, moon_tforms)
     

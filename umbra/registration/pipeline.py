@@ -119,8 +119,8 @@ def process_anchors(
     """Load anchors, detect moon, and sun-align images.
 
     Processes anchors one at a time to avoid storing all preprocessed images simultaneously.
-    Returns (anchor_headers, moon_centers, moon_radii, sun_tforms_from_anchor_zero).
-    sun_tforms_from_anchor_zero has length N; index i maps anchor[0] -> anchor[i].
+    Returns (anchor_headers, moon_centers, moon_radii, sun_tforms_from_first_anchor).
+    sun_tforms_from_first_anchor has length N; index i maps anchor[0] -> anchor[i].
     """
     anchor_headers: list[astropy.io.fits.Header] = []
     moon_centers: list[np.ndarray] = []
@@ -156,13 +156,13 @@ def process_anchors(
 
     # Compute transforms to each anchor from the first anchor (anchor[0] is identity)
     identity = sk.transform.EuclideanTransform()
-    sun_tforms_from_anchor_zero: list[sk.transform.EuclideanTransform] = [identity]
+    sun_tforms_from_first_anchor: list[sk.transform.EuclideanTransform] = [identity]
     for tform_pairwise in sun_tforms_pairwise:
-        sun_tforms_from_anchor_zero.append(
-            cast(sk.transform.EuclideanTransform, sun_tforms_from_anchor_zero[-1] + tform_pairwise)
+        sun_tforms_from_first_anchor.append(
+            cast(sk.transform.EuclideanTransform, sun_tforms_from_first_anchor[-1] + tform_pairwise)
         )
 
-    return anchor_headers, moon_centers, moon_radii, sun_tforms_from_anchor_zero
+    return anchor_headers, moon_centers, moon_radii, sun_tforms_from_first_anchor
 
 def interpolate_transforms(
     tforms: list[sk.transform.EuclideanTransform],
@@ -172,14 +172,14 @@ def interpolate_transforms(
     return transform.create_interp(timestamps, tforms)(new_timestamp)
 
 def compute_sun_transforms(
-    sun_tform_from_anchor_zero_to_ref: sk.transform.EuclideanTransform,
-    sun_tforms_from_anchor_zero: list[sk.transform.EuclideanTransform],
+    sun_tform_from_first_anchor_to_ref: sk.transform.EuclideanTransform,
+    sun_tforms_from_first_anchor: list[sk.transform.EuclideanTransform],
 ) -> list[sk.transform.EuclideanTransform]:
     """Convert transforms relative to anchor 0 into transforms relative to the reference frame.
     """
     return [
-        cast(sk.transform.EuclideanTransform, sun_tform_from_anchor_zero_to_ref.inverse + t)
-        for t in sun_tforms_from_anchor_zero
+        cast(sk.transform.EuclideanTransform, sun_tform_from_first_anchor_to_ref.inverse + t)
+        for t in sun_tforms_from_first_anchor
     ]
 
 def compute_moon_transforms(
