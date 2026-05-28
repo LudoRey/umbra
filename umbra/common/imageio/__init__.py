@@ -7,6 +7,6 @@ from umbra.common.imageio.read import (
     read_image,
     read_pillow,
     read_raw,
-    validate_or_convert_dtype,
+    to_float,
 )
 from umbra.common.imageio.metadata import extract_metadata

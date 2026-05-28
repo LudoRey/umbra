@@ -1,4 +1,5 @@
 from pathlib import Path
+import warnings
 
 import cv2
 import numpy as np
@@ -117,18 +118,23 @@ def debayer(img: np.ndarray, bayer_pattern: str) -> np.ndarray:
     return cv2.cvtColor(img, code)
 
 
-def validate_or_convert_dtype(img: np.ndarray) -> np.ndarray:
+def to_float(img: np.ndarray) -> np.ndarray:
+    """Convert an image array to float32 in [0, 1]."""
     if np.issubdtype(img.dtype, np.floating):
         if img.min() < 0 or img.max() > 1:
             raise ValueError("Floating point image values must be in the range [0, 1].")
-        return img
+        return img.astype(np.float32)
     elif np.issubdtype(img.dtype, np.unsignedinteger):
-        itemsize = img.dtype.itemsize
-        if itemsize == 2: # already uint16
-            return img
-        elif itemsize == 1: # uint8
-            return img.astype(np.uint16) * (2**8 + 1)
-        else:
-            return img >> (itemsize * 8 - 16) # downscale to 16 bits by bit-shifting
+        return img.astype(np.float32) / np.iinfo(img.dtype).max
+    elif np.issubdtype(img.dtype, np.signedinteger):
+        result = img.astype(np.float32) / np.iinfo(img.dtype).max
+        if result.min() < 0:
+            raise ValueError("Signed integer image contains negative values.")
+        warnings.warn(
+            f"Image has signed integer dtype ({img.dtype}), which is not officially supported. "
+            "Consider using unsigned integer or floating point.",
+            UserWarning,
+        )
+        return result
     else:
         raise ValueError(f"Unsupported image dtype {img.dtype}.")

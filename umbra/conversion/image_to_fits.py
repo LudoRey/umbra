@@ -21,7 +21,7 @@ def convert_file(
         metadata["BAYERPAT"] = bayer_pattern
         img = imageio.debayer(img, bayer_pattern)
 
-    img = imageio.validate_or_convert_dtype(img)
+    img = imageio.to_float(img)
 
     header = _build_header(input_filepath, metadata)
     fits.save_as_fits(img, header, output_filepath)
