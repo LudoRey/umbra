@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+from umbra.common import imageio
 from umbra.common.terminal import cprint
 from umbra.common.typing import CheckStateCallback, ImageCallback
 from umbra import conversion
@@ -15,7 +16,7 @@ def main(
 ) -> None:
     images_dir = Path(images_dir)
     fits_dir = Path(fits_dir)
-    filepaths = conversion.list_image_filepaths(images_dir)
+    filepaths = imageio.list_image_filepaths(images_dir)
     if not filepaths:
         raise ValueError(f"No supported image files found in {images_dir}.")
 
