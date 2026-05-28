@@ -72,14 +72,14 @@ def read_image(filepath: Path | str) -> tuple[np.ndarray, str | None]:
     return read_pillow(filepath), None
 
 
-def read_raw(filepath: Path | str) -> tuple[np.ndarray, str | None]:
+def read_raw(filepath: Path | str) -> tuple[np.ndarray, str]:
     filepath = Path(filepath)
     with rawpy.imread(str(filepath)) as raw:
         img = raw.raw_image_visible.copy()
         bayer_pattern = _raw_bayer_pattern(raw)
         if bayer_pattern is None:
             raise ValueError(f"Unsupported RAW Bayer pattern in {filepath.name}.")
-        return _debayer_raw(img, bayer_pattern), bayer_pattern
+        return img, bayer_pattern
 
 
 def read_pillow(filepath: Path | str) -> np.ndarray:
@@ -101,7 +101,7 @@ def _raw_bayer_pattern(raw: rawpy.RawPy) -> str | None:
     return pattern if pattern in {"RGGB", "BGGR", "GRBG", "GBRG"} else None
 
 
-def _debayer_raw(img: np.ndarray, bayer_pattern: str) -> np.ndarray:
+def debayer(img: np.ndarray, bayer_pattern: str) -> np.ndarray:
     if img.ndim != 2:
         raise ValueError("RAW sensor data must be single-channel before debayering.")
     code_by_pattern = {
@@ -117,7 +117,7 @@ def _debayer_raw(img: np.ndarray, bayer_pattern: str) -> np.ndarray:
     return cv2.cvtColor(img, code)
 
 
-def validate_or_convert_image(img: np.ndarray) -> np.ndarray:
+def validate_or_convert_dtype(img: np.ndarray) -> np.ndarray:
     if np.issubdtype(img.dtype, np.floating):
         if img.min() < 0 or img.max() > 1:
             raise ValueError("Floating point image values must be in the range [0, 1].")

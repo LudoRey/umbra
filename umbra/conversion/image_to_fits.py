@@ -19,8 +19,9 @@ def convert_file(
     img, bayer_pattern = imageio.read_image(input_filepath)
     if bayer_pattern is not None:
         metadata["BAYERPAT"] = bayer_pattern
+        img = imageio.debayer(img, bayer_pattern)
 
-    img = imageio.validate_or_convert_image(img)
+    img = imageio.validate_or_convert_dtype(img)
 
     header = _build_header(input_filepath, metadata)
     fits.save_as_fits(img, header, output_filepath)
