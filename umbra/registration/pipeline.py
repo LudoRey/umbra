@@ -72,7 +72,7 @@ def validate_filenames(fits_dir: Path, filenames: Sequence[str], file_type: str)
     for filename in filenames:
         if not (fits_dir / filename).exists():
             raise ValueError(f"{file_type} file {filename} does not exist in the input directory.")
-        if not filename.endswith((".fits", ".fit")):
+        if not filename.endswith(tuple(fits.FITS_EXTENSIONS)):
             raise ValueError(f"{file_type} file {filename} must be a FITS file (.fits or .fit).")
 
 
@@ -84,7 +84,7 @@ def resolve_remaining_filenames(
     """Return sorted filenames of non-ref, non-anchor FITS files in fits_dir."""
     return sorted(
         p.name for p in fits_dir.iterdir()
-        if p.suffix in (".fits", ".fit")
+        if p.suffix in fits.FITS_EXTENSIONS
         and p.name != ref_filename
         and p.name not in anchor_filenames
     )

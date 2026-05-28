@@ -11,6 +11,9 @@ from umbra.common import coords
 from umbra.common.terminal import cprint
 
 
+FITS_EXTENSIONS = frozenset({".fits", ".fit"})
+
+
 def read_fits_as_float(filepath: Path | str, region: coords.Region | None = None, verbose=True, *, checkstate=lambda: None):
     if verbose:
         cprint(f"Opening {filepath}...")
@@ -99,7 +102,7 @@ def list_fits_filepaths(dirpath: Path | str) -> list[Path]:
     return [
         p
         for p in dirpath.iterdir()
-        if p.is_file() and p.suffix in ('.fits', '.fit')
+        if p.is_file() and p.suffix in FITS_EXTENSIONS
     ]
 
 def update_header(header: astropy.io.fits.Header, cards: Sequence[astropy.io.fits.Card], in_place=False):
