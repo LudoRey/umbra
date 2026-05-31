@@ -4,10 +4,9 @@ from typing import Any, cast
 
 import dateutil.parser
 import numpy as np
-import warnings
 import os
 import astropy.io.fits
-from umbra.common import coords
+from umbra.common import coords, convert
 from umbra.common.terminal import cprint
 
 
@@ -32,24 +31,7 @@ def read_fits_as_float(filepath: Path | str, region: coords.Region | None = None
                 img = data[region.top:region.bottom, region.left:region.right]
             else:
                 img = data[:, region.top:region.bottom, region.left:region.right]
-    # Type checking and float conversion
-    dtype = cast(np.dtype, img.dtype)
-    img = img.astype(np.float32)
-    if np.issubdtype(dtype, np.unsignedinteger) or np.issubdtype(dtype, np.integer):
-        img /= np.iinfo(dtype).max
-        if np.issubdtype(dtype, np.integer) and not np.issubdtype(dtype, np.unsignedinteger):
-            if img.min() < 0:
-                raise ValueError(f"FITS image is in signed integer format and contains negative values.")
-            warnings.warn(
-                "FITS image is in true signed integer format, which is not officially supported. "
-                "Consider converting to unsigned integer (through BZERO trick) or floating point.",
-                UserWarning
-            )
-    elif np.issubdtype(img.dtype, np.floating):
-        if img.min() < 0 or img.max() > 1:
-            raise ValueError("FITS image is in floating point format but contains values outside the [0,1] range.")
-    else:
-        raise ValueError(f"Unrecognized FITS image format. Expected integer, unsigned integer, or floating point.")
+    img = convert.to_float(img)
     # If color image : CxHxW -> HxWxC
     if len(img.shape) == 3:
         img = np.moveaxis(img, 0, 2)
@@ -74,13 +56,8 @@ def extract_timestamp(header: astropy.io.fits.Header) -> float:
 def save_as_fits(img: np.ndarray, header: astropy.io.fits.Header | None, filepath: Path | str, convert_to_uint16=False, verbose=True, *, checkstate=lambda: None):
     if verbose:
         cprint(f"Writing {filepath}...")
-    if np.issubdtype(img.dtype, np.uint16):
-        pass
-    elif np.issubdtype(img.dtype, np.floating):
-        if convert_to_uint16:
-            img = (np.clip(img, 0, 1)*65535).astype('uint16')
-    else:
-        raise ValueError(f"Image format must be either 16-bit unsigned integer, or floating point.")
+    if convert_to_uint16:
+        img = convert.to_uint16(img)
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     if len(img.shape) == 3:
         img = np.moveaxis(img, 2, 0)
