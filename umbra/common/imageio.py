@@ -1,10 +1,11 @@
 from pathlib import Path
-import warnings
+from typing import Any
 
-import cv2
+import exifread
 import numpy as np
 import rawpy
 from PIL import Image
+import cv2
 
 
 RAW_EXTENSIONS = frozenset({
@@ -90,6 +91,13 @@ def read_pillow(filepath: Path | str) -> np.ndarray:
     return img
 
 
+def read_metadata(filepath: Path | str) -> dict[str, Any]:
+    """Read EXIF metadata from an image file."""
+    filepath = Path(filepath)
+    with filepath.open("rb") as file:
+        return exifread.process_file(file, details=False, builtin_types=True)
+
+
 def _raw_bayer_pattern(raw: rawpy.RawPy) -> str | None:
     colors = raw.raw_pattern
     if colors is None or colors.shape != (2, 2):
@@ -116,25 +124,3 @@ def debayer(img: np.ndarray, bayer_pattern: str) -> np.ndarray:
     except KeyError as exc:
         raise ValueError(f"Unsupported Bayer pattern {bayer_pattern}.") from exc
     return cv2.cvtColor(img, code)
-
-
-def to_float(img: np.ndarray) -> np.ndarray:
-    """Convert an image array to float32 in [0, 1]."""
-    if np.issubdtype(img.dtype, np.floating):
-        if img.min() < 0 or img.max() > 1:
-            raise ValueError("Floating point image values must be in the range [0, 1].")
-        return img.astype(np.float32)
-    elif np.issubdtype(img.dtype, np.unsignedinteger):
-        return img.astype(np.float32) / np.iinfo(img.dtype).max
-    elif np.issubdtype(img.dtype, np.signedinteger):
-        result = img.astype(np.float32) / np.iinfo(img.dtype).max
-        if result.min() < 0:
-            raise ValueError("Signed integer image contains negative values.")
-        warnings.warn(
-            f"Image has signed integer dtype ({img.dtype}), which is not officially supported. "
-            "Consider using unsigned integer or floating point.",
-            UserWarning,
-        )
-        return result
-    else:
-        raise ValueError(f"Unsupported image dtype {img.dtype}.")

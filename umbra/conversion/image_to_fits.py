@@ -4,7 +4,7 @@ from typing import Any
 import astropy.io.fits
 import numpy as np
 
-from umbra.common import fits, imageio
+from umbra.common import fits, convert, imageio
 
 
 def convert_file(
@@ -15,13 +15,13 @@ def convert_file(
     input_filepath = Path(input_filepath)
     output_filepath = Path(output_filepath)
 
-    metadata = imageio.extract_metadata(input_filepath)
+    metadata = imageio.read_metadata(input_filepath)
     img, bayer_pattern = imageio.read_image(input_filepath)
     if bayer_pattern is not None:
         metadata["BAYERPAT"] = bayer_pattern
         img = imageio.debayer(img, bayer_pattern)
 
-    img = imageio.to_float(img)
+    img = convert.to_float(img)
 
     header = _build_header(input_filepath, metadata)
     fits.save_as_fits(img, header, output_filepath)
