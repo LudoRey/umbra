@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from umbra.common import imageio
+from umbra.common import fits, imageio
 from umbra.common.terminal import cprint
 from umbra.common.typing import CheckStateCallback, ImageCallback
 from umbra import conversion
@@ -24,7 +24,10 @@ def main(
     for idx, filepath in enumerate(filepaths, start=1):
         output_filepath = fits_dir / f"{filepath.stem}.fits"
         cprint(f"Converting {filepath.name} ({idx}/{len(filepaths)})...", style="bold", color="cyan")
-        img, _ = conversion.convert_file(filepath, output_filepath)
+        metadata = imageio.read_metadata(filepath)
+        img = imageio.read_image(filepath)
+        header = conversion.build_header_from_exif(metadata)
+        fits.save_as_fits(img, header, output_filepath)
         img_callback(img)
         checkstate()
     cprint("Conversion completed successfully.", style="bold", color="green")

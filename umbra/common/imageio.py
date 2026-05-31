@@ -7,6 +7,8 @@ import rawpy
 from PIL import Image
 import cv2
 
+from umbra.common import convert
+
 
 RAW_EXTENSIONS = frozenset({
     ".3fr",
@@ -63,15 +65,39 @@ def list_image_filepaths(dirpath: Path | str) -> list[Path]:
     )
 
 
-def read_image(filepath: Path | str) -> tuple[np.ndarray, str | None]:
+def read_image(
+    filepath: Path | str,
+    *,
+    to_float: bool = True,
+    debayer: bool = True,
+) -> np.ndarray:
     """Read an image file, dispatching by extension.
 
-    Returns (image_array, bayer_pattern). bayer_pattern is None for non-RAW formats.
+    Parameters
+    ----------
+    filepath : Path or str
+        Path to the image file.
+    to_float : bool, optional
+        If True, convert the image to float32 in [0, 1].
+    debayer : bool, optional
+        If True, debayer RAW sensor data into an RGB image. Ignored for
+        non-RAW formats, which are already in RGB.
+
+    Returns
+    -------
+    np.ndarray
+        The image array.
     """
     filepath = Path(filepath)
     if filepath.suffix.lower() in RAW_EXTENSIONS:
-        return read_raw(filepath)
-    return read_pillow(filepath), None
+        img, bayer_pattern = read_raw(filepath)
+        if debayer:
+            img = _debayer(img, bayer_pattern)
+    else:
+        img = read_pillow(filepath)
+    if to_float:
+        img = convert.to_float(img)
+    return img
 
 
 def read_raw(filepath: Path | str) -> tuple[np.ndarray, str]:
@@ -110,7 +136,7 @@ def _raw_bayer_pattern(raw: rawpy.RawPy) -> str | None:
     return pattern if pattern in {"RGGB", "BGGR", "GRBG", "GBRG"} else None
 
 
-def debayer(img: np.ndarray, bayer_pattern: str) -> np.ndarray:
+def _debayer(img: np.ndarray, bayer_pattern: str) -> np.ndarray:
     if img.ndim != 2:
         raise ValueError("RAW sensor data must be single-channel before debayering.")
     code_by_pattern = {

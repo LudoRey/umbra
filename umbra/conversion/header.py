@@ -1,34 +1,9 @@
-from pathlib import Path
 from typing import Any
 
 import astropy.io.fits
-import numpy as np
-
-from umbra.common import fits, convert, imageio
 
 
-def convert_file(
-    input_filepath: Path | str,
-    output_filepath: Path | str,
-) -> tuple[np.ndarray, astropy.io.fits.Header]:
-    """Convert one image file to FITS."""
-    input_filepath = Path(input_filepath)
-    output_filepath = Path(output_filepath)
-
-    metadata = imageio.read_metadata(input_filepath)
-    img, bayer_pattern = imageio.read_image(input_filepath)
-    if bayer_pattern is not None:
-        metadata["BAYERPAT"] = bayer_pattern
-        img = imageio.debayer(img, bayer_pattern)
-
-    img = convert.to_float(img)
-
-    header = _build_header(input_filepath, metadata)
-    fits.save_as_fits(img, header, output_filepath)
-    return img, header
-
-
-def _build_header(filepath: Path, metadata: dict[str, Any]) -> astropy.io.fits.Header:
+def build_header_from_exif(metadata: dict[str, Any]) -> astropy.io.fits.Header:
     header = astropy.io.fits.Header()
     _set_if_present(header, "DATE-OBS", _date_obs(metadata), "Observation date and time")
     _set_if_present(header, "EXPTIME", metadata.get("EXIF ExposureTime"), "Exposure time in seconds")
@@ -36,9 +11,7 @@ def _build_header(filepath: Path, metadata: dict[str, Any]) -> astropy.io.fits.H
     _set_if_present(header, "FOCALLEN", metadata.get("EXIF FocalLength"), "Focal length in mm")
     _set_if_present(header, "FNUMBER", metadata.get("EXIF FNumber"), "Lens F-number")
     _set_if_present(header, "INSTRUME", _camera(metadata), "Camera model")
-    _set_if_present(header, "BAYERPAT", metadata.get("BAYERPAT"), "Source Bayer pattern")
     header["ORIGIN"] = ("Umbra", "Software that created this file")
-    header["SRCFMT"] = (filepath.suffix.lower().lstrip(".")[:68], "Source image format")
     return header
 
 
