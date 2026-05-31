@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-from umbra.common.fits import intersect_headers, remove_pedestal, read_fits_as_float, save_as_fits, get_grouped_filepaths, read_fits_header, list_fits_filepaths
+from umbra.common.fits import intersect_headers, remove_pedestal, read_fits, save_as_fits, get_grouped_filepaths, read_fits_header, list_fits_filepaths
 from umbra.common import coords
 from umbra.common.disk import binary_disk
 from umbra.hdr import saturation_weighting, equalize_brightness, compute_scaling_factor
@@ -44,7 +44,7 @@ def main(
 
     # Read first reference image (the longest exposure)
     group_name = list(grouped_filepaths.keys())[-1]
-    img_y, header_y = read_fits_as_float(grouped_filepaths[group_name][0])
+    img_y, header_y = read_fits(grouped_filepaths[group_name][0])
     # Compute mask and weights
     mask_y = (img_y.max(axis=2) > low_clipping_threshold) * (img_y.max(axis=2) < high_clipping_threshold)
     weights = saturation_weighting(img_y.max(axis=2), 0, high_clipping_threshold, low_smoothness, high_smoothness)
@@ -61,7 +61,7 @@ def main(
     headers = [header_y]
     for group_name in reversed(list(grouped_filepaths.keys())[:-1]):
         # Read image to fit
-        img_x, header_x = read_fits_as_float(grouped_filepaths[group_name][0])
+        img_x, header_x = read_fits(grouped_filepaths[group_name][0])
         headers.append(header_x)
         # Compute mask and weights
         mask_x = (img_x.max(axis=2) > low_clipping_threshold) * (img_x.max(axis=2) < high_clipping_threshold)

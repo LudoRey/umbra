@@ -27,7 +27,7 @@ def read_stack(
     headers = []
     cprint(f"Loading images...", end=' ', flush=True)
     for i in range(N):
-        stack[i], header = fits.read_fits_as_float(filepaths[i], region, verbose=False, checkstate=checkstate)
+        stack[i], header = fits.read_fits(filepaths[i], region, verbose=False, checkstate=checkstate)
         headers.append(header)
     print("Done.")
     return stack, headers

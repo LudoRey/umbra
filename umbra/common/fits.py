@@ -13,7 +13,7 @@ from umbra.common.terminal import cprint
 FITS_EXTENSIONS = frozenset({".fits", ".fit"})
 
 
-def read_fits_as_float(filepath: Path | str, region: coords.Region | None = None, verbose=True, *, checkstate=lambda: None):
+def read_fits(filepath: Path | str, region: coords.Region | None = None, to_float=True, verbose=True, *, checkstate=lambda: None):
     if verbose:
         cprint(f"Opening {filepath}...")
     # Open image/header
@@ -31,7 +31,8 @@ def read_fits_as_float(filepath: Path | str, region: coords.Region | None = None
                 img = data[region.top:region.bottom, region.left:region.right]
             else:
                 img = data[:, region.top:region.bottom, region.left:region.right]
-    img = convert.to_float(img)
+    if to_float:
+        img = convert.to_float(img)
     # If color image : CxHxW -> HxWxC
     if len(img.shape) == 3:
         img = np.moveaxis(img, 0, 2)

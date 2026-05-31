@@ -45,7 +45,7 @@ def main(
 
     ### Process reference image and compute sun transform from first anchor to reference
     cprint(f"Processing reference image: {ref_filename}", style='bold', color='cyan')
-    ref_img, ref_header = fits.read_fits_as_float(fits_dir / ref_filename, checkstate=checkstate)
+    ref_img, ref_header = fits.read_fits(fits_dir / ref_filename, checkstate=checkstate)
     if ref_filename not in anchor_filenames:
         _, ref_moon_center, ref_moon_radius = pipeline.preprocess_and_detect_moon(ref_img, num_clipped_pixels, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
         ref_timestamp = fits.extract_timestamp(ref_header)
@@ -69,7 +69,7 @@ def main(
     ### Register anchor images using precomputed values
     for i, filename in enumerate(anchor_filenames):
         cprint(f"Registering anchor image {filename} ({i+1}/{len(anchor_filenames)}):", style='bold', color='cyan')
-        img, header = fits.read_fits_as_float(fits_dir / filename, checkstate=checkstate)
+        img, header = fits.read_fits(fits_dir / filename, checkstate=checkstate)
         moon_center, moon_radius = moon_centers[i], moon_radii[i]
         cprint(f"Extracting anchor values:", style='bold')
         rotation, sun_moon_translation  = rotations[i], sun_moon_translations[i]
@@ -91,7 +91,7 @@ def main(
         rotation_interp, sun_moon_translation_interp = pipeline.build_anchor_values_interpolants(anchor_timestamps, sun_moon_translations, rotations)
         for i, filename in enumerate(remaining_filenames):
             cprint(f"Registering non-anchor image {filename} ({i+1}/{len(remaining_filenames)}):", style='bold', color='cyan')
-            img, header = fits.read_fits_as_float(fits_dir / filename, checkstate=checkstate)
+            img, header = fits.read_fits(fits_dir / filename, checkstate=checkstate)
             _, moon_center, moon_radius = pipeline.preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
             cprint(f"Interpolating:", style='bold')
             timestamp = fits.extract_timestamp(header)

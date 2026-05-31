@@ -132,7 +132,7 @@ def process_anchors(
 
     for i, filename in enumerate(anchor_filenames):
         cprint(f"Processing anchor image {filename} ({i+1}/{len(anchor_filenames)}):", style='bold', color='cyan')
-        img, header = fits.read_fits_as_float(fits_dir / filename, checkstate=checkstate)
+        img, header = fits.read_fits(fits_dir / filename, checkstate=checkstate)
         img, moon_center, moon_radius = preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, checkstate=checkstate, img_callback=img_callback)
         preprocessed_img, mass_center = registration.sun.preprocess(img, moon_center, moon_radius, sigma_high_pass_tangential, img_callback=img_callback, checkstate=checkstate)
         cprint(f"Anchor image {filename} processed successfully ({i+1}/{len(anchor_filenames)}).", color='green')

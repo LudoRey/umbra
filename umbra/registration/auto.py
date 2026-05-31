@@ -47,7 +47,7 @@ def select_anchors(
         group_identifier = ', '.join([f'{k}={v}' for k, v in zip(group_keywords, group_keyword_values)])
         sorted_filepaths = sorted(group_filepaths, key=lambda p: fits.extract_timestamp(filepath_to_header[p]))
         first_filepath, last_filepath = sorted_filepaths[0], sorted_filepaths[-1]
-        img, _ = fits.read_fits_as_float(first_filepath, verbose=False)
+        img, _ = fits.read_fits(first_filepath, verbose=False)
         bright_pixel_count = np.sum(img >= bright_relative_threshold * img.max())
         if bright_pixel_count >= num_bright_pixels:
             if group_identifier:

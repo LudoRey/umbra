@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-from umbra.common.fits import remove_pedestal, read_fits_as_float, save_as_fits, intersect_headers, read_fits_header, get_grouped_filepaths, list_fits_filepaths
+from umbra.common.fits import remove_pedestal, read_fits, save_as_fits, intersect_headers, read_fits_header, get_grouped_filepaths, list_fits_filepaths
 from umbra.hdr import saturation_weighting, compute_scaling_factor
 
 def main(
@@ -28,7 +28,7 @@ def main(
     headers = []
     for group_name in grouped_filepaths.keys():
         # Read image
-        img, header = read_fits_as_float(grouped_filepaths[group_name][0])
+        img, header = read_fits(grouped_filepaths[group_name][0])
         headers.append(header)
         # Compute weight
         if group_name == list(grouped_filepaths.keys())[0]: # shortest exposure : no high range clipping
