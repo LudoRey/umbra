@@ -1,6 +1,5 @@
-from collections.abc import Callable
-from typing import cast
 
+from typing import cast
 import astropy.io.fits
 import numpy as np
 import bottleneck as bn
@@ -11,8 +10,6 @@ from umbra.common.terminal import cprint
 def outlier_rejection(
     stack: np.ndarray,
     outlier_threshold: float,
-    *,
-    checkstate: Callable[[], None]
 ) -> None:
     """
     Perform a single pass of sigma clipping on a stack of images.
@@ -47,7 +44,6 @@ def outlier_rejection(
     mask |= stack > tmp
     stack[mask] = np.nan
     num_rejected = np.sum(mask)
-    checkstate()
     print(f"Found {num_rejected} pixels.")
 
 def moon_rejection(
@@ -56,8 +52,6 @@ def moon_rejection(
     extra_radius_pixels: float,
     smoothness: float,
     region: coords.Region | None = None,
-    *,
-    checkstate: Callable[[], None]
 ) -> np.ndarray:
     """
     Smooth reject the pixels that correspond to the moon.
@@ -112,6 +106,5 @@ def moon_rejection(
     mask = weights == 0
     stack[mask] = np.nan
     num_rejected = np.sum(mask)
-    checkstate()
     print(f"Found {num_rejected} pixels.")
     return weights

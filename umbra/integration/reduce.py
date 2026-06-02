@@ -1,4 +1,5 @@
 import numpy as np
+import bottleneck as bn
 
 def weighted_average_ignore_nan(
     stack: np.ndarray,
@@ -34,4 +35,22 @@ def weighted_average_ignore_nan(
         np.sum(weights_c, axis=0, out=out_total_weights[..., c])
         out_img[..., c] /= out_total_weights[..., c]
     out_total_weights /= N
+    print("Done.")
+
+def average_ignore_nan(
+    stack: np.ndarray,
+    out_img: np.ndarray,
+) -> None:
+    """
+    Compute the average of a stack of images, ignoring NaN pixels.
+
+    Parameters
+    ----------
+    stack : np.ndarray
+        Array of shape (N, H, W, C) representing the stack of images.
+    out_img : np.ndarray
+        Output, modified in-place. Array of shape (H, W, C) representing the average image.
+    """
+    print("Computing average...", end=" ", flush=True)
+    out_img[:] = bn.nanmean(stack, axis=0)
     print("Done.")
