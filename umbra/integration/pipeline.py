@@ -52,7 +52,7 @@ def integrate(
         The average weights used per pixel, of shape (H, W) or (H, W, C). None when ``weight_fn`` is None.
     """
     num_images = len(filepaths)
-    shape = io.read_shape(filepaths[0])  # (H, W) or (H, W, C)
+    shape = fits.extract_shape(fits.read_fits_header(filepaths[0]))  # (H, W) or (H, W, C)
 
     # Compute available memory
     safe_memory_fraction = 0.8

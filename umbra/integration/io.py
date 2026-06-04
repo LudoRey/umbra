@@ -9,12 +9,6 @@ from umbra.common.terminal import cprint
 from umbra.common.typing import CheckStateCallback
 
 
-def read_shape(filepath: Path | str) -> tuple[int, int, int]:
-    """Return the (H, W, C) shape of an image frame without loading its full data."""
-    header = fits.read_fits_header(filepath)
-    return cast(int, header["NAXIS2"]), cast(int, header["NAXIS1"]), cast(int, header["NAXIS3"])
-
-
 def read_stack(
     filepaths: Sequence[Path | str],
     region: coords.Region | None = None,
@@ -22,13 +16,10 @@ def read_stack(
     checkstate: CheckStateCallback,
 ) -> tuple[np.ndarray, list[astropy.io.fits.Header]]:
     N = len(filepaths)
-    H, W, C = read_shape(filepaths[0])
-    if region is None:
-        region = coords.Region(width=W, height=H)
-    else:
-        W = region.width
-        H = region.height
-    stack = np.zeros((N, H, W, C), dtype=np.float32)
+    shape = fits.extract_shape(fits.read_fits_header(filepaths[0]))
+    if region is not None:
+        shape = (region.height, region.width, *shape[2:])
+    stack = np.zeros((N, *shape), dtype=np.float32)
     headers = []
     cprint(f"Loading images...", end=' ', flush=True)
     for i in range(N):

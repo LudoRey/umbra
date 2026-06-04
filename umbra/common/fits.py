@@ -54,6 +54,15 @@ def extract_timestamp(header: astropy.io.fits.Header) -> float:
         raise ValueError("FITS header does not contain a DATE-OBS keyword.")
     return dateutil.parser.parse(cast(str, timestr)).timestamp()
 
+def extract_shape(header: astropy.io.fits.Header) -> tuple[int, ...]:
+    """Extract the (H, W) or (H, W, C) shape of the image from the FITS header."""
+    if "NAXIS1" not in header or "NAXIS2" not in header:
+        raise ValueError("FITS header is missing NAXIS1 and/or NAXIS2 keywords.")
+    num_channels = header.get("NAXIS3")
+    if num_channels is not None:
+        return cast(tuple[int, int, int], (header["NAXIS2"], header["NAXIS1"], header["NAXIS3"]))
+    return cast(tuple[int, int], (header["NAXIS2"], header["NAXIS1"]))
+
 def save_as_fits(img: np.ndarray, header: astropy.io.fits.Header | None, filepath: Path | str, convert_to_uint16=False, verbose=True, *, checkstate=lambda: None):
     if verbose:
         cprint(f"Writing {filepath}...")

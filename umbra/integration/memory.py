@@ -21,12 +21,13 @@ def compute_stacking_memory_requirements(
 
 def compute_rows_ranges_for_stack(
     num_images: int,
-    shape: tuple[int, int, int],
+    shape: tuple[int, ...],
     available_mem: int,
     dtype: np.dtype,
     has_weights: bool = True,
 ) -> list[tuple[int, int]]:
-    height, width, num_channels = shape
+    height, width = shape[:2]
+    num_channels = shape[2] if len(shape) > 2 else 1
     num_output_arrays = 2 if has_weights else 1
     required_output_mem = height * width * num_channels * dtype.itemsize * num_output_arrays
     if required_output_mem >= available_mem:
