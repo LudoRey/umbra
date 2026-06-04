@@ -2,7 +2,7 @@ import os
 import numpy as np
 from scipy import ndimage
 
-from umbra.common.fits import read_fits, combine_headers, save_as_fits
+from umbra.common import fits, imageio
 
 def main(
     moon_hdr_dir,
@@ -13,8 +13,8 @@ def main(
 ):
     os.makedirs(merged_hdr_dir, exist_ok=True)
 
-    img_moon, header_moon = read_fits(os.path.join(moon_hdr_dir, "hdr.fits"))
-    img_sun, header_sun = read_fits(os.path.join(sun_hdr_dir, "hdr.fits"))
+    img_moon, header_moon = imageio.read(os.path.join(moon_hdr_dir, "hdr.fits"))
+    img_sun, header_sun = imageio.read(os.path.join(sun_hdr_dir, "hdr.fits"))
 
     print(f"Merging moon and sun images...")
 
@@ -38,9 +38,9 @@ def main(
 
     img_merged = moon_mask[:,:,None]*img_moon + (1-moon_mask)[:,:,None]*img_sun
 
-    header_merged = combine_headers([header_moon, header_sun])
-    save_as_fits(img_merged, header_merged, os.path.join(merged_hdr_dir, f"hdr.fits"), convert_to_uint16=False)
-    save_as_fits(moon_mask[:,:,None], None, os.path.join(merged_hdr_dir, f"moon_mask.fits"))
+    header_merged = fits.combine([header_moon, header_sun])
+    imageio.write(os.path.join(merged_hdr_dir, f"hdr.fits"), img_merged, header_merged)
+    imageio.write(os.path.join(merged_hdr_dir, f"moon_mask.fits"), moon_mask[:,:,None], None)
     
 if __name__ == "__main__":
     import sys

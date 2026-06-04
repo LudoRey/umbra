@@ -5,7 +5,7 @@ from pathlib import Path
 import astropy.io.fits
 import numpy as np
 
-from umbra.common import coords, fits
+from umbra.common import coords, fits, imageio
 from umbra.common.terminal import cprint
 from umbra.common.typing import CheckStateCallback, ImageCallback
 from umbra.integration import io, memory, rejection, reduce
@@ -52,7 +52,7 @@ def integrate(
         The average weights used per pixel, of shape (H, W) or (H, W, C). None when ``weight_fn`` is None.
     """
     num_images = len(filepaths)
-    shape = fits.extract_shape(fits.read_fits_header(filepaths[0]))  # (H, W) or (H, W, C)
+    shape = imageio.read_shape(filepaths[0])  # (H, W) or (H, W, C)
 
     # Compute available memory
     safe_memory_fraction = 0.8
@@ -92,5 +92,5 @@ def integrate(
         del stack, weights
         gc.collect()
 
-    output_header = fits.intersect_headers(headers)
+    output_header = fits.intersect(headers)
     return img, output_header, total_weights

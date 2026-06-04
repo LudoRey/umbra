@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-from umbra.common.fits import remove_pedestal, read_fits, save_as_fits, intersect_headers, read_fits_header, get_grouped_filepaths, list_fits_filepaths
+from umbra.common import fits, imageio
 from umbra.hdr import saturation_weighting, compute_scaling_factor
 
 def main(
@@ -15,11 +15,11 @@ def main(
 ):
     os.makedirs(moon_hdr_dir, exist_ok=True)
 
-    filepath_to_header = {p: read_fits_header(p) for p in list_fits_filepaths(moon_stacks_dir)}
-    grouped_filepaths = get_grouped_filepaths(filepath_to_header, group_keywords) # we need sorted files based on irradiance
+    filepath_to_header = {p: imageio.read_header(p) for p in imageio.list_files(moon_stacks_dir, extensions=imageio.extensions.FITS)}
+    grouped_filepaths = fits.group_filepaths(filepath_to_header, group_keywords) # we need sorted files based on irradiance
 
     # Initialize stuff
-    ref_header = read_fits_header(grouped_filepaths[list(grouped_filepaths.keys())[0]][0])
+    ref_header = imageio.read_header(grouped_filepaths[list(grouped_filepaths.keys())[0]][0])
     ref_scaling_factor = compute_scaling_factor(ref_header, group_keywords)
     shape = (ref_header["NAXIS2"], ref_header["NAXIS1"], ref_header["NAXIS3"])
     hdr_img = np.zeros(shape)
@@ -28,7 +28,7 @@ def main(
     headers = []
     for group_name in grouped_filepaths.keys():
         # Read image
-        img, header = read_fits(grouped_filepaths[group_name][0])
+        img, header = imageio.read(grouped_filepaths[group_name][0])
         headers.append(header)
         # Compute weight
         if group_name == list(grouped_filepaths.keys())[0]: # shortest exposure : no high range clipping
@@ -37,11 +37,15 @@ def main(
             weights = saturation_weighting(img.max(axis=2), 0, high_clipping_threshold, low_smoothness, high_smoothness)
         else:
             weights = saturation_weighting(img.max(axis=2), low_clipping_threshold, high_clipping_threshold, low_smoothness, high_smoothness)
-        save_as_fits(weights, None, os.path.join(moon_hdr_dir, f"weights_{group_name}.fits"))
+        imageio.write(os.path.join(moon_hdr_dir, f"weights_{group_name}.fits"), weights, None)
         weights = weights * header["EXPTIME"]**2
         # Compute scaled irradiance (normalize to shortest exposure)
         scaling_factor = compute_scaling_factor(header, group_keywords)
-        img = remove_pedestal(img, header) * ref_scaling_factor / scaling_factor
+        pedestal = header.get("PEDESTAL")
+        if pedestal is not None and isinstance(pedestal, (int, float)):
+            img = np.maximum(img - pedestal / 65535, 0)
+            header.remove("PEDESTAL")
+        img = img * ref_scaling_factor / scaling_factor
 
         # Add weighted scaled irradiance to the HDR image
         hdr_img += weights[:,:,None] * img
@@ -50,9 +54,9 @@ def main(
     hdr_img /= sum_weights[:,:,None]
     hdr_img = np.clip(hdr_img, 0, 1)
 
-    output_header = intersect_headers(headers)
+    output_header = fits.intersect(headers)
 
-    save_as_fits(hdr_img, output_header, os.path.join(moon_hdr_dir, "hdr.fits"), convert_to_uint16=False)
+    imageio.write(os.path.join(moon_hdr_dir, "hdr.fits"), hdr_img, output_header)
     
 if __name__ == "__main__":
     import sys

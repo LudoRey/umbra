@@ -2,7 +2,7 @@ from collections.abc import Sequence
 import numpy as np
 from pathlib import Path
 
-from umbra.common import fits
+from umbra.common import fits, imageio
 from umbra.common.terminal import cprint
 from umbra.common.typing import CheckStateCallback, ImageCallback
 from umbra.registration import pipeline
@@ -45,7 +45,7 @@ def main(
 
     ### Process reference image and compute sun transform from first anchor to reference
     cprint(f"Processing reference image: {ref_filename}", style='bold', color='cyan')
-    ref_img, ref_header = fits.read_fits(fits_dir / ref_filename, checkstate=checkstate)
+    ref_img, ref_header = imageio.read(fits_dir / ref_filename, checkstate=checkstate)
     if ref_filename not in anchor_filenames:
         _, ref_moon_center, ref_moon_radius = pipeline.preprocess_and_detect_moon(ref_img, num_clipped_pixels, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
         ref_timestamp = fits.extract_timestamp(ref_header)
@@ -57,8 +57,8 @@ def main(
         ref_moon_center, ref_moon_radius = moon_centers[anchor_index], moon_radii[anchor_index]
         sun_tform_from_first_anchor_to_ref = sun_tforms_from_first_anchor[anchor_index]
     ref_moon_header, ref_sun_header = pipeline.update_headers(ref_header, ref_moon_center, ref_moon_radius)
-    fits.save_as_fits(ref_img, ref_moon_header, moon_registered_dir / ref_filename, checkstate=checkstate)
-    fits.save_as_fits(ref_img, ref_sun_header, sun_registered_dir / ref_filename, checkstate=checkstate)
+    imageio.write(moon_registered_dir / ref_filename, ref_img, ref_moon_header, checkstate=checkstate)
+    imageio.write(sun_registered_dir / ref_filename, ref_img, ref_sun_header, checkstate=checkstate)
     cprint(f"Reference image processed successfully.", color='green')
 
     ### Compute transforms from reference to anchors, and extract anchor values (rotations and sun-moon translations)
@@ -69,7 +69,7 @@ def main(
     ### Register anchor images using precomputed values
     for i, filename in enumerate(anchor_filenames):
         cprint(f"Registering anchor image {filename} ({i+1}/{len(anchor_filenames)}):", style='bold', color='cyan')
-        img, header = fits.read_fits(fits_dir / filename, checkstate=checkstate)
+        img, header = imageio.read(fits_dir / filename, checkstate=checkstate)
         moon_center, moon_radius = moon_centers[i], moon_radii[i]
         cprint(f"Extracting anchor values:", style='bold')
         rotation, sun_moon_translation  = rotations[i], sun_moon_translations[i]
@@ -80,8 +80,8 @@ def main(
         moon_registered_img, moon_header, sun_registered_img, sun_header = pipeline.apply_transforms(
             img, header, moon_center, moon_radius, moon_tform, sun_tform,
         )
-        fits.save_as_fits(moon_registered_img, moon_header, moon_registered_dir / filename, checkstate=checkstate)
-        fits.save_as_fits(sun_registered_img, sun_header, sun_registered_dir / filename, checkstate=checkstate)
+        imageio.write(moon_registered_dir / filename, moon_registered_img, moon_header, checkstate=checkstate)
+        imageio.write(sun_registered_dir / filename, sun_registered_img, sun_header, checkstate=checkstate)
         cprint(f"Anchor image {filename} registered successfully ({i+1}/{len(anchor_filenames)}).", color='green')
 
     ### Register remaining images through moon detection + timestamp-based interpolation of anchor values
@@ -91,7 +91,7 @@ def main(
         rotation_interp, sun_moon_translation_interp = pipeline.build_anchor_values_interpolants(anchor_timestamps, sun_moon_translations, rotations)
         for i, filename in enumerate(remaining_filenames):
             cprint(f"Registering non-anchor image {filename} ({i+1}/{len(remaining_filenames)}):", style='bold', color='cyan')
-            img, header = fits.read_fits(fits_dir / filename, checkstate=checkstate)
+            img, header = imageio.read(fits_dir / filename, checkstate=checkstate)
             _, moon_center, moon_radius = pipeline.preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
             cprint(f"Interpolating:", style='bold')
             timestamp = fits.extract_timestamp(header)
@@ -105,8 +105,8 @@ def main(
             moon_registered_img, moon_header, sun_registered_img, sun_header = pipeline.apply_transforms(
                 img, header, moon_center, moon_radius, moon_tform, sun_tform,
             )
-            fits.save_as_fits(moon_registered_img, moon_header, moon_registered_dir / filename, checkstate=checkstate)
-            fits.save_as_fits(sun_registered_img, sun_header, sun_registered_dir / filename, checkstate=checkstate)
+            imageio.write(moon_registered_dir / filename, moon_registered_img, moon_header, checkstate=checkstate)
+            imageio.write(sun_registered_dir / filename, sun_registered_img, sun_header, checkstate=checkstate)
             cprint(f"Image {filename} registered successfully ({i+1}/{len(remaining_filenames)}).", color='green')
     cprint(f"Registration completed successfully.", style='bold', color='green')
 

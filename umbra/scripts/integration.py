@@ -1,7 +1,7 @@
 import os
 from collections.abc import Sequence
 
-from umbra.common import fits
+from umbra.common import fits, imageio
 from umbra.common.terminal import cprint
 from umbra import integration
 from umbra.common.typing import CheckStateCallback, ImageCallback
@@ -31,8 +31,8 @@ def main(
             stack, headers, extra_radius_pixels, smoothness, region)
 
     # Process each group
-    filepath_to_header = {p: fits.read_fits_header(p) for p in fits.list_fits_filepaths(registered_dir)}
-    grouped_filepaths = fits.get_grouped_filepaths(filepath_to_header, group_keywords)
+    filepath_to_header = {p: imageio.read_header(p) for p in imageio.list_files(registered_dir, extensions=imageio.extensions.FITS)}
+    grouped_filepaths = fits.group_filepaths(filepath_to_header, group_keywords)
     num_groups = len(grouped_filepaths)
     for group_idx, group_values in enumerate(grouped_filepaths.keys(), start=1):
         filepaths = grouped_filepaths[group_values]
@@ -43,9 +43,9 @@ def main(
             filepaths, outlier_threshold, weight_fn, img_callback=img_callback, checkstate=checkstate)
 
         group_name = " - ".join([f"{group_keywords[i]}_{group_values[i]}" for i in range(len(group_keywords))])
-        fits.save_as_fits(img, output_header, os.path.join(stacks_dir, f"{group_name}.fits"), checkstate=checkstate)
+        imageio.write(os.path.join(stacks_dir, f"{group_name}.fits"), img, output_header, checkstate=checkstate)
         if total_weights is not None:
-            fits.save_as_fits(total_weights, None, os.path.join(stacks_dir, f"{group_name}_rejection.fits"), checkstate=checkstate)
+            imageio.write(os.path.join(stacks_dir, f"{group_name}_rejection.fits"), total_weights, None, checkstate=checkstate)
         cprint(f"Group {group_identifier} stacked successfully ({group_idx}/{num_groups}).", color="green")
     cprint(f"Stacking completed successfully.", style='bold', color='green')
 

@@ -9,7 +9,7 @@ import scipy.interpolate
 import skimage as sk
 
 from umbra import registration
-from umbra.common import transform, fits
+from umbra.common import fits, imageio, transform
 from umbra.common.terminal import cprint
 from umbra.common.typing import CheckStateCallback, ImageCallback
 
@@ -46,8 +46,8 @@ def resolve_anchor_filenames(
     num_clipped_pixels: float,
 ) -> list[str]:
     """Return a validated, sorted list of anchor filenames."""
-    filepaths = fits.list_fits_filepaths(fits_dir)
-    filepath_to_header = {p: fits.read_fits_header(p) for p in filepaths}
+    filepaths = imageio.list_files(fits_dir, extensions=imageio.extensions.FITS)
+    filepath_to_header = {p: imageio.read_header(p) for p in filepaths}
 
     try:
         filepath_to_timestamp = {p: fits.extract_timestamp(header) for p, header in filepath_to_header.items()}
@@ -72,7 +72,7 @@ def validate_filenames(fits_dir: Path, filenames: Sequence[str], file_type: str)
     for filename in filenames:
         if not (fits_dir / filename).exists():
             raise ValueError(f"{file_type} file {filename} does not exist in the input directory.")
-        if not filename.endswith(tuple(fits.FITS_EXTENSIONS)):
+        if not filename.endswith(tuple(imageio.extensions.FITS)):
             raise ValueError(f"{file_type} file {filename} must be a FITS file (.fits or .fit).")
 
 
@@ -84,7 +84,7 @@ def resolve_remaining_filenames(
     """Return sorted filenames of non-ref, non-anchor FITS files in fits_dir."""
     return sorted(
         p.name for p in fits_dir.iterdir()
-        if p.suffix in fits.FITS_EXTENSIONS
+        if p.suffix in imageio.extensions.FITS
         and p.name != ref_filename
         and p.name not in anchor_filenames
     )
@@ -132,7 +132,7 @@ def process_anchors(
 
     for i, filename in enumerate(anchor_filenames):
         cprint(f"Processing anchor image {filename} ({i+1}/{len(anchor_filenames)}):", style='bold', color='cyan')
-        img, header = fits.read_fits(fits_dir / filename, checkstate=checkstate)
+        img, header = imageio.read(fits_dir / filename, checkstate=checkstate)
         img, moon_center, moon_radius = preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, checkstate=checkstate, img_callback=img_callback)
         preprocessed_img, mass_center = registration.sun.preprocess(img, moon_center, moon_radius, sigma_high_pass_tangential, img_callback=img_callback, checkstate=checkstate)
         cprint(f"Anchor image {filename} processed successfully ({i+1}/{len(anchor_filenames)}).", color='green')
@@ -251,8 +251,8 @@ def update_headers(
     """Produce updated FITS headers for moon-registered and sun-registered images."""
     sun_registered_moon_center = sun_tform.inverse(moon_center)[0] if sun_tform is not None else moon_center
     moon_registered_moon_center = moon_tform.inverse(moon_center)[0] if moon_tform is not None else moon_center
-    moon_header = fits.update_header(header, registration.moon.keyword_cards(moon_registered_moon_center, moon_radius))
-    sun_header = fits.update_header(header, registration.moon.keyword_cards(sun_registered_moon_center, moon_radius))
+    moon_header = fits.update(header, registration.moon.keyword_cards(moon_registered_moon_center, moon_radius))
+    sun_header = fits.update(header, registration.moon.keyword_cards(sun_registered_moon_center, moon_radius))
     return moon_header, sun_header
 
 
