@@ -65,12 +65,12 @@ def list_image_filepaths(dirpath: Path | str) -> list[Path]:
     )
 
 
-def read_image(
+def read_image_and_bayer_pattern(
     filepath: Path | str,
     *,
     to_float: bool = True,
     debayer: bool = True,
-) -> np.ndarray:
+) -> tuple[np.ndarray, str | None]:
     """Read an image file, dispatching by extension.
 
     Parameters
@@ -87,16 +87,30 @@ def read_image(
     -------
     np.ndarray
         The image array.
+    str | None
+        The Bayer pattern, or None if not applicable.
     """
     filepath = Path(filepath)
+    bayer_pattern = None
     if filepath.suffix.lower() in RAW_EXTENSIONS:
         img, bayer_pattern = read_raw(filepath)
         if debayer:
-            img = _debayer(img, bayer_pattern)
+            img = debayer_image(img, bayer_pattern)
     else:
         img = read_pillow(filepath)
     if to_float:
         img = convert.to_float(img)
+    return img, bayer_pattern
+
+
+def read_image(
+    filepath: Path | str,
+    *,
+    to_float: bool = True,
+    debayer: bool = True,
+    ) -> np.ndarray:
+    """Convenience wrapper around read_image_and_bayer_pattern that discards the Bayer pattern."""
+    img, _ = read_image_and_bayer_pattern(filepath, to_float=to_float, debayer=debayer)
     return img
 
 
@@ -104,9 +118,7 @@ def read_raw(filepath: Path | str) -> tuple[np.ndarray, str]:
     filepath = Path(filepath)
     with rawpy.imread(str(filepath)) as raw:
         img = raw.raw_image_visible.copy()
-        bayer_pattern = _raw_bayer_pattern(raw)
-        if bayer_pattern is None:
-            raise ValueError(f"Unsupported RAW Bayer pattern in {filepath.name}.")
+        bayer_pattern = _extract_bayer_pattern(raw)
         return img, bayer_pattern
 
 
@@ -124,19 +136,21 @@ def read_metadata(filepath: Path | str) -> dict[str, Any]:
         return exifread.process_file(file, details=False, builtin_types=True)
 
 
-def _raw_bayer_pattern(raw: rawpy.RawPy) -> str | None:
+def _extract_bayer_pattern(raw: rawpy.RawPy) -> str:
     colors = raw.raw_pattern
     if colors is None or colors.shape != (2, 2):
-        return None
+        raise ValueError("Unsupported RAW Bayer pattern")
     names = raw.color_desc.decode("ascii", errors="ignore")
     try:
         pattern = "".join(names[int(colors[row, col])] for row in range(2) for col in range(2))
     except (IndexError, TypeError):
-        return None
-    return pattern if pattern in {"RGGB", "BGGR", "GRBG", "GBRG"} else None
+        raise ValueError(f"Unsupported RAW Bayer pattern")
+    if pattern not in {"RGGB", "BGGR", "GRBG", "GBRG"}:
+        raise ValueError(f"Unsupported RAW Bayer pattern {pattern}")
+    return pattern
 
 
-def _debayer(img: np.ndarray, bayer_pattern: str) -> np.ndarray:
+def debayer_image(img: np.ndarray, bayer_pattern: str) -> np.ndarray:
     if img.ndim != 2:
         raise ValueError("RAW sensor data must be single-channel before debayering.")
     code_by_pattern = {
