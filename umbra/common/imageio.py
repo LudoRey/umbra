@@ -124,7 +124,6 @@ def read_raw(filepath: Path | str) -> tuple[np.ndarray, str]:
 
 def read_pillow(filepath: Path | str) -> np.ndarray:
     with Image.open(filepath) as image:
-        image = image.convert("RGB")
         img = np.asarray(image)
     return img
 
