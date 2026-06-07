@@ -16,7 +16,7 @@ def read(filepath: Path | str, region: coords.Region | None = None) -> tuple[np.
     """
     filepath = Path(filepath)
     with rawpy.imread(str(filepath)) as raw:
-        img = raw.raw_image_visible.copy()
+        img = _scale_to_uint16(raw.raw_image_visible, raw.white_level)
         bayer_pattern = _extract_bayer_pattern(raw)
     if region is not None:
         img = img[region.top:region.top+region.height, region.left:region.left+region.width]
@@ -33,6 +33,26 @@ def read_shape(filepath: Path | str) -> tuple[int, ...]:
     """Return the (H, W) shape of the raw mosaic (always 2D)."""
     with rawpy.imread(str(filepath)) as raw:
         return raw.sizes.height, raw.sizes.width
+
+
+def _scale_to_uint16(img: np.ndarray, white_level: int) -> np.ndarray:
+    """Stretch a raw mosaic to fill the full uint16 range.
+
+    Camera RAWs store low-depth samples (e.g. 14-bit) in a uint16 container, so the data
+    would otherwise read too dark. The black level is preserved.
+
+    ``white_level`` is the value at which a pixel is considered saturated, as reported by
+    the RAW decoder. The sample depth is taken as the number of bits needed to represent it
+    (e.g. a value near 16383 implies 14-bit data). Frames whose depth cannot be inferred
+    from ``white_level`` are returned unchanged.
+    """
+    bits = int(white_level).bit_length()
+    shift = 16 - bits
+    if not 0 < shift < 16:
+        # shift == 0: already 16-bit; shift < 0: white_level > 16-bit; shift == 16: white_level
+        # is 0 (LibRaw could not determine saturation). In all cases, leave the data unscaled.
+        return img.copy()
+    return (img << shift) | (img >> (bits - shift))
 
 
 def _extract_bayer_pattern(raw: rawpy.RawPy) -> str:
