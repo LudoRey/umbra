@@ -44,8 +44,7 @@ def main(
 
         group_name = " - ".join([f"{group_keywords[i]}_{group_values[i]}" for i in range(len(group_keywords))])
         imageio.write(os.path.join(stacks_dir, f"{group_name}.fits"), img, output_header, checkstate=checkstate)
-        if total_weights is not None:
-            imageio.write(os.path.join(stacks_dir, f"{group_name}_rejection.fits"), total_weights, None, checkstate=checkstate)
+        imageio.write(os.path.join(stacks_dir, f"{group_name}_rejection.fits"), total_weights, None, checkstate=checkstate)
         cprint(f"Group {group_identifier} stacked successfully ({group_idx}/{num_groups}).", color="green")
     cprint(f"Stacking completed successfully.", style='bold', color='green')
 

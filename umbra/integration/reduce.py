@@ -40,6 +40,7 @@ def weighted_average_ignore_nan(
 def average_ignore_nan(
     stack: np.ndarray,
     out_img: np.ndarray,
+    out_total_weights: np.ndarray,
 ) -> None:
     """
     Compute the average of a stack of images, ignoring NaN pixels.
@@ -50,7 +51,13 @@ def average_ignore_nan(
         Array of shape (N, H, W, C) representing the stack of images.
     out_img : np.ndarray
         Output, modified in-place. Array of shape (H, W, C) representing the average image.
+    out_total_weights : np.ndarray
+        Output, modified in-place. Array of shape (H, W, C) holding the fraction of non-NaN
+        (i.e. non-rejected) frames per pixel, in [0, 1]. This doubles as a rejection map.
     """
     print("Computing average...", end=" ", flush=True)
+    N = stack.shape[0]
     out_img[:] = bn.nanmean(stack, axis=0)
+    np.sum(~np.isnan(stack), axis=0, out=out_total_weights)
+    out_total_weights /= N
     print("Done.")

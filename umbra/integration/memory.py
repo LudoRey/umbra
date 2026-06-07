@@ -28,7 +28,7 @@ def compute_rows_ranges_for_stack(
 ) -> list[tuple[int, int]]:
     height, width = shape[:2]
     num_channels = shape[2] if len(shape) > 2 else 1
-    num_output_arrays = 2 if has_weights else 1
+    num_output_arrays = 2  # img + rejection map
     required_output_mem = height * width * num_channels * dtype.itemsize * num_output_arrays
     if required_output_mem >= available_mem:
         raise MemoryError("Not enough available memory for output arrays.")

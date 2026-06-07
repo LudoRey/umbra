@@ -21,7 +21,7 @@ def integrate(
     *,
     img_callback: ImageCallback = lambda _img: None,
     checkstate: CheckStateCallback = lambda: None,
-) -> tuple[np.ndarray, astropy.io.fits.Header, np.ndarray | None]:
+) -> tuple[np.ndarray, astropy.io.fits.Header, np.ndarray]:
     """
     Stack a list of images into a single master image, in a memory-aware (chunked) manner.
 
@@ -48,8 +48,9 @@ def integrate(
         The stacked image of shape (H, W) or (H, W, C).
     header : astropy.io.fits.Header
         The header common to all stacked images.
-    total_weights : np.ndarray or None
-        The average weights used per pixel, of shape (H, W) or (H, W, C). None when ``weight_fn`` is None.
+    total_weights : np.ndarray
+        The average weights used per pixel, of shape (H, W) or (H, W, C). Doubles as a rejection
+        map. When ``weight_fn`` is None, it is the fraction of non-rejected frames per pixel.
     """
     num_images = len(filepaths)
     shape = imageio.read_shape(filepaths[0])  # (H, W) or (H, W, C)
@@ -63,7 +64,7 @@ def integrate(
     dtype = np.dtype(np.float32)
     img = np.zeros(shape, dtype=dtype)
     img[:] = np.nan
-    total_weights = np.zeros(shape, dtype=dtype) if weight_fn is not None else None
+    total_weights = np.zeros(shape, dtype=dtype)
 
     # Chunking based on available memory
     rows_ranges = memory.compute_rows_ranges_for_stack(num_images, shape, available_mem, dtype=dtype, has_weights=weight_fn is not None)
@@ -82,9 +83,8 @@ def integrate(
         checkstate()
         # Update output arrays
         if weights is None:
-            reduce.average_ignore_nan(stack, img[row_start:row_end])
+            reduce.average_ignore_nan(stack, img[row_start:row_end], total_weights[row_start:row_end])
         else:
-            assert total_weights is not None
             reduce.weighted_average_ignore_nan(stack, weights, img[row_start:row_end], total_weights[row_start:row_end])
         checkstate()
         img_callback(img)
