@@ -1,12 +1,20 @@
 import numpy as np
-import cv2
+from colour_demosaicing import (
+    demosaicing_CFA_Bayer_bilinear,
+    demosaicing_CFA_Bayer_Malvar2004,
+    demosaicing_CFA_Bayer_Menon2007,
+)
 
 
 PATTERNS = frozenset({"RGGB", "BGGR", "GRBG", "GBRG"})
+ALGORITHMS = frozenset({"bilinear", "malvar", "menon"})
 
 
-def debayer(img: np.ndarray, pattern: str) -> np.ndarray:
+def debayer(img: np.ndarray, pattern: str, algorithm: str = "bilinear") -> np.ndarray:
     """Demosaic a single-channel CFA mosaic into an RGB image.
+
+    Operates on floating-point data directly, so it can run on calibrated
+    frames whose values may be negative or exceed the original ADU range.
 
     Parameters
     ----------
@@ -14,27 +22,36 @@ def debayer(img: np.ndarray, pattern: str) -> np.ndarray:
         2D single-channel Bayer mosaic.
     pattern : str
         One of :data:`PATTERNS`.
+    algorithm : str, optional
+        Demosaicing algorithm, one of :data:`ALGORITHMS`:
+        ``"bilinear"`` (fastest, default), ``"malvar"`` (Malvar et al., 2004), or
+        ``"menon"`` (Menon et al., 2007, DDFAPD; highest quality).
 
     Returns
     -------
     np.ndarray
-        HxWx3 RGB image.
+        HxWx3 RGB image with the same dtype as ``img``.
 
     Raises
     ------
     ValueError
-        If ``img`` is not single-channel or ``pattern`` is unsupported.
+        If ``img`` is not single-channel, ``pattern`` is unsupported, or
+        ``algorithm`` is unknown.
     """
     if img.ndim != 2:
         raise ValueError("RAW sensor data must be single-channel before debayering.")
-    code_by_pattern = {
-        "RGGB": cv2.COLOR_BayerRGGB2RGB,
-        "BGGR": cv2.COLOR_BayerBGGR2RGB,
-        "GRBG": cv2.COLOR_BayerGRBG2RGB,
-        "GBRG": cv2.COLOR_BayerGBRG2RGB,
+    if pattern not in PATTERNS:
+        raise ValueError(f"Unsupported Bayer pattern {pattern}.")
+    demosaic_by_algorithm = {
+        "bilinear": demosaicing_CFA_Bayer_bilinear,
+        "malvar": demosaicing_CFA_Bayer_Malvar2004,
+        "menon": demosaicing_CFA_Bayer_Menon2007,
     }
     try:
-        code = code_by_pattern[pattern]
+        demosaic = demosaic_by_algorithm[algorithm]
     except KeyError as exc:
-        raise ValueError(f"Unsupported Bayer pattern {pattern}.") from exc
-    return cv2.cvtColor(img, code)
+        raise ValueError(f"Unsupported demosaicing algorithm {algorithm}.") from exc
+    print("Debayering...", end="", flush=True)
+    rgb = demosaic(img, pattern)
+    print("Done.")
+    return rgb

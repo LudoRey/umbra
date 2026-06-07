@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from umbra.common import bayer, convert, fits, imageio
+from umbra.common import bayer, fits, imageio
 from umbra.common.terminal import cprint
 from umbra.common.typing import CheckStateCallback, ImageCallback
 
@@ -25,14 +25,11 @@ def main(
     for idx, filepath in enumerate(filepaths, start=1):
         output_filepath = fits_dir / f"{filepath.stem}.fits"
         cprint(f"Converting {filepath.name} ({idx}/{len(filepaths)})...", style="bold", color="cyan")
-        img, header = imageio.read(filepath, to_float=False, verbose=False)
+        img, header = imageio.read(filepath)
         pattern = fits.extract_bayer_pattern(header)
-        if pattern is not None:  # camera RAW or OSC FITS
-            # CHANGE-LATER: cv2 demosaic requires an integer mosaic, so debayer must run
-            # before to_float. Revisit this ordering once the debayer algo supports floats.
-            img = bayer.debayer(img, pattern)
+        if pattern is not None:
+            img = bayer.debayer(img, pattern, algorithm=debayer_algorithm)
             header.remove("BAYERPAT")  # output is debayered RGB, no longer a mosaic
-        img = convert.to_float(img)
         imageio.write(output_filepath, img, header)
         img_callback(img)
         checkstate()
