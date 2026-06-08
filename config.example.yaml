@@ -3,7 +3,7 @@
 #          *anchor_name       (reference an anchor)
 
 _shared:
-  - &images_dir 'path/to/images'
+  - &raw_dir 'path/to/raw'
   - &fits_dir 'path/to/fits'
   - &moon_registered_dir 'path/to/moon_registered'
   - &sun_registered_dir 'path/to/sun_registered'
@@ -16,7 +16,7 @@ _shared:
   - &image_scale 1.00
 
 conversion:
-  images_dir: *images_dir
+  raw_dir: *raw_dir
   fits_dir: *fits_dir
   flat_path: 'path/to/flats' # directory, master file, or null
   bias_path: 'path/to/bias'  # directory, master file, or null

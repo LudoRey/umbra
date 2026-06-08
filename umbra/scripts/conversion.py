@@ -8,7 +8,7 @@ from umbra import conversion
 
 
 def main(
-    images_dir: str | Path,
+    raw_dir: str | Path,
     fits_dir: str | Path,
     dark_path: str | Path | None = None,
     flat_path: str | Path | None = None,
@@ -19,13 +19,11 @@ def main(
     img_callback: ImageCallback = lambda _img: None,
     checkstate: CheckStateCallback = lambda: None,
 ) -> None:
-    images_dir = Path(images_dir)
+    raw_dir = Path(raw_dir)
     fits_dir = Path(fits_dir)
-    if fits_dir.resolve() == images_dir.resolve():
-        raise ValueError("Output directory must differ from the input directory.")
-    filepaths = imageio.list_files(images_dir)
+    filepaths = imageio.list_files(raw_dir)
     if not filepaths:
-        raise ValueError(f"No supported image files found in {images_dir}.")
+        raise ValueError(f"No supported image files found in {raw_dir}.")
     if flat_path is not None and bias_path is None:
         raise ValueError("Bias is required when flat is provided.")
 
