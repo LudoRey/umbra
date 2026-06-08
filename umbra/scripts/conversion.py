@@ -14,6 +14,7 @@ def main(
     flat_path: str | Path | None = None,
     bias_path: str | Path | None = None,
     debayer_algorithm: str = "menon",
+    calibration_outlier_threshold: float = 3.0,
     *,
     img_callback: ImageCallback = lambda _img: None,
     checkstate: CheckStateCallback = lambda: None,
@@ -28,9 +29,9 @@ def main(
     if flat_path is not None and bias_path is None:
         raise ValueError("Bias is required when flat is provided.")
 
-    dark_master = conversion.load_or_create_master(dark_path, checkstate=checkstate) if dark_path is not None else None
-    flat_master = conversion.load_or_create_master(flat_path, checkstate=checkstate) if flat_path is not None else None
-    bias_master = conversion.load_or_create_master(bias_path, checkstate=checkstate) if bias_path is not None else None
+    dark_master = conversion.calibration.load_or_create_master(dark_path, calibration_outlier_threshold, checkstate=checkstate) if dark_path is not None else None
+    flat_master = conversion.calibration.load_or_create_master(flat_path, calibration_outlier_threshold, checkstate=checkstate) if flat_path is not None else None
+    bias_master = conversion.calibration.load_or_create_master(bias_path, calibration_outlier_threshold, checkstate=checkstate) if bias_path is not None else None
     calibrating = dark_master is not None or flat_master is not None or bias_master is not None
 
     os.makedirs(fits_dir, exist_ok=True)
@@ -42,7 +43,7 @@ def main(
         pattern = fits.extract_bayer_pattern(header)
         if calibrating:
             cprint("Calibrating...", end=" ", flush=True)
-            img = conversion.calibrate(img, dark=dark_master, flat=flat_master, bias=bias_master)
+            img = conversion.calibration.calibrate(img, dark=dark_master, flat=flat_master, bias=bias_master)
             print("Done.")
         checkstate()
         img_callback(img)

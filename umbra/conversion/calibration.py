@@ -4,7 +4,7 @@ import numpy as np
 
 from umbra.common import imageio
 from umbra.common.typing import CheckStateCallback
-from umbra.integration import integrate
+from umbra import integration
 
 
 def calibrate(
@@ -52,7 +52,7 @@ def load_or_create_master(
         filepaths = imageio.list_files(path)
         if not filepaths:
             raise ValueError(f"No supported image files found in {path}.")
-        img, header, _ = integrate(filepaths, outlier_threshold, checkstate=checkstate)
+        img, header, _ = integration.integrate(filepaths, outlier_threshold, checkstate=checkstate)
         if save_master:
             imageio.write(path.parent / f"master_{path.name}.fits", img, header, checkstate=checkstate)
         return img
