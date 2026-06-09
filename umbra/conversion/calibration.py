@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 
 from umbra.common import imageio
+from umbra.common.terminal import cprint
 from umbra.common.typing import CheckStateCallback
 from umbra import integration
 
@@ -34,6 +35,7 @@ def calibrate(
 
 def load_or_create_master(
     path: Path | str,
+    type: str,
     outlier_threshold: float | None = None,
     save_master: bool = True,
     *,
@@ -52,8 +54,10 @@ def load_or_create_master(
         filepaths = imageio.list_files(path)
         if not filepaths:
             raise ValueError(f"No supported image files found in {path}.")
+        cprint(f"Stacking {len(filepaths)} {type} images:", style="bold", color="cyan")
         img, header, _ = integration.integrate(filepaths, outlier_threshold, checkstate=checkstate)
         if save_master:
-            imageio.write(path.parent / f"master_{path.name}.fits", img, header, checkstate=checkstate)
+            imageio.write(path.parent / f"master_{type}.fits", img, header, checkstate=checkstate)
+        cprint(f"{type.capitalize()} images stacked successfully.", color="green")
         return img
     return imageio.read(path, checkstate=checkstate)[0]
