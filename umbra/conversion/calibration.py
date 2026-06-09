@@ -34,7 +34,7 @@ def calibrate(
 
 def load_or_create_master(
     path: Path | str,
-    outlier_threshold: float = 3.0,
+    outlier_threshold: float | None = None,
     save_master: bool = True,
     *,
     checkstate: CheckStateCallback = lambda: None,

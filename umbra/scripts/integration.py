@@ -14,7 +14,7 @@ def main(
     stacks_dir: str,
     group_keywords: Sequence[str],
     # Outlier rejection
-    outlier_threshold: float,
+    outlier_threshold: float | None,
     # Moon rejection (optional, for sun-registered images)
     moon_rejection: bool = False,
     extra_radius_pixels: float = 0,

@@ -22,7 +22,7 @@ conversion:
   bias_path: 'path/to/bias'  # directory, master file, or null
   dark_path: 'path/to/dark'  # directory, master file, or null
   debayer_algorithm: 'menon' # or 'malvar', 'bilinear'
-  calibration_outlier_threshold: 3.0
+  calibration_outlier_threshold: null
 
 registration:
   fits_dir: *fits_dir
