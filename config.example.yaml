@@ -23,6 +23,7 @@ conversion:
   dark_path: 'path/to/dark'  # directory, master file, or null
   debayer_algorithm: 'menon' # or 'malvar', 'bilinear'
   calibration_outlier_threshold: null
+  save_master: true
 
 registration:
   fits_dir: *fits_dir

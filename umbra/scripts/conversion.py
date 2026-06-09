@@ -15,6 +15,7 @@ def main(
     bias_path: str | Path | None,
     debayer_algorithm: str,
     calibration_outlier_threshold: float | None,
+    save_master: bool,
     *,
     img_callback: ImageCallback = lambda _img: None,
     checkstate: CheckStateCallback = lambda: None,
@@ -27,9 +28,9 @@ def main(
     if flat_path is not None and bias_path is None:
         raise ValueError("Bias is required when flat is provided.")
 
-    dark_master = conversion.calibration.load_or_create_master(dark_path, "dark", calibration_outlier_threshold, checkstate=checkstate) if dark_path is not None else None
-    flat_master = conversion.calibration.load_or_create_master(flat_path, "flat", calibration_outlier_threshold, checkstate=checkstate) if flat_path is not None else None
-    bias_master = conversion.calibration.load_or_create_master(bias_path, "bias", calibration_outlier_threshold, checkstate=checkstate) if bias_path is not None else None
+    dark_master = conversion.calibration.load_or_create_master(dark_path, "dark", calibration_outlier_threshold, save_master, checkstate=checkstate) if dark_path is not None else None
+    flat_master = conversion.calibration.load_or_create_master(flat_path, "flat", calibration_outlier_threshold, save_master, checkstate=checkstate) if flat_path is not None else None
+    bias_master = conversion.calibration.load_or_create_master(bias_path, "bias", calibration_outlier_threshold, save_master, checkstate=checkstate) if bias_path is not None else None
     calibrating = dark_master is not None or flat_master is not None or bias_master is not None
 
     os.makedirs(fits_dir, exist_ok=True)
