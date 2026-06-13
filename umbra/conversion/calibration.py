@@ -13,24 +13,47 @@ def calibrate(
     dark: np.ndarray | None = None,
     flat: np.ndarray | None = None,
     bias: np.ndarray | None = None,
+    pattern: str | None = None,
 ) -> np.ndarray:
     """
     Calibrate a light frame: ``(light - subtrahend) / normalized_flat``, clipped to [0, 1].
 
     The subtrahend is the dark frame if provided, otherwise the bias frame, otherwise zero. The flat
-    field ``(flat - bias)`` is normalized by its mean so it preserves the overall brightness. When no
-    flat is provided, only the dark/bias subtraction is applied. ``bias`` must be provided when ``flat``
-    is. All arrays must share the light's shape (grayscale mosaic or color).
+    field ``(flat - bias)`` is normalized so it preserves overall brightness without altering color
+    balance: each color is divided by its own mean rather than a single global mean. For a CFA mosaic
+    (``pattern`` given) the Bayer positions are grouped by color (e.g. ``RGGB`` -> R, G, B) and each
+    group normalized against the combined mean of its positions; for a mono frame the global mean is
+    used. When no flat is provided, only the dark/bias subtraction is applied. ``bias`` must be
+    provided when ``flat`` is. All arrays must share the light's shape.
     """
     subtrahend = dark if dark is not None else bias
     out = light if subtrahend is None else light - subtrahend
     if flat is not None:
         if bias is None:
             raise ValueError("Bias frame is required when flat frame is provided.")
-        flat_field = flat - bias
-        flat_field = flat_field / flat_field.mean()
-        out = out / flat_field
+        out = out / _normalize_flat(flat - bias, pattern)
     return np.clip(out, 0, 1)
+
+
+def _normalize_flat(flat_field: np.ndarray, pattern: str | None) -> np.ndarray:
+    """Scale ``flat_field`` so each color has unit mean.
+
+    For a mono frame (``pattern`` None) the global mean is used. For a CFA mosaic the four positions
+    of the 2x2 Bayer cell (``pattern`` read row-major, so ``pattern[2 * row + col]``) are grouped by
+    color and each group divided by the combined mean of its positions.
+    """
+    if pattern is None:
+        return flat_field / flat_field.mean()
+    positions_by_color: dict[str, list[tuple[int, int]]] = {}
+    for index, color in enumerate(pattern):
+        positions_by_color.setdefault(color, []).append((index // 2, index % 2))
+    normalized = np.empty_like(flat_field)
+    for positions in positions_by_color.values():
+        components = [flat_field[row::2, col::2] for row, col in positions]
+        mean = np.concatenate([c.ravel() for c in components]).mean()
+        for (row, col), component in zip(positions, components):
+            normalized[row::2, col::2] = component / mean
+    return normalized
 
 
 def load_or_create_master(

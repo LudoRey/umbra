@@ -42,15 +42,16 @@ def main(
         pattern = fits.extract_bayer_pattern(header)
         if calibrating:
             cprint("Calibrating...", end=" ", flush=True)
-            img = conversion.calibration.calibrate(img, dark=dark_master, flat=flat_master, bias=bias_master)
+            img = conversion.calibration.calibrate(img, dark=dark_master, flat=flat_master, bias=bias_master, pattern=pattern)
             print("Done.")
         checkstate()
         img_callback(img)
         if pattern is not None:
             img = bayer.debayer(img, pattern, algorithm=debayer_algorithm)
             header.remove("BAYERPAT")
-        imageio.write(output_filepath, img, header, checkstate=checkstate)
+        checkstate()
         img_callback(img)
+        imageio.write(output_filepath, img, header, checkstate=checkstate)
     cprint("Conversion completed successfully.", style="bold", color="green")
 
 
