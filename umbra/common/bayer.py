@@ -54,4 +54,4 @@ def debayer(img: np.ndarray, pattern: str, algorithm: str = "bilinear") -> np.nd
     print("Debayering...", end="", flush=True)
     rgb = demosaic(img, pattern)
     print("Done.")
-    return rgb
+    return np.clip(rgb, 0, 1)
