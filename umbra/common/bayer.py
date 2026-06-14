@@ -1,9 +1,4 @@
 import numpy as np
-from colour_demosaicing import (
-    demosaicing_CFA_Bayer_bilinear,
-    demosaicing_CFA_Bayer_Malvar2004,
-    demosaicing_CFA_Bayer_Menon2007,
-)
 
 
 PATTERNS = frozenset({"RGGB", "BGGR", "GRBG", "GBRG"})
@@ -42,6 +37,14 @@ def debayer(img: np.ndarray, pattern: str, algorithm: str = "bilinear") -> np.nd
         raise ValueError("RAW sensor data must be single-channel before debayering.")
     if pattern not in PATTERNS:
         raise ValueError(f"Unsupported Bayer pattern {pattern}.")
+    # Imported lazily: colour_demosaicing pulls in the "colour" (and with it scipy/matplotlib)
+    # which takes a long time to import, especially in frozen environments.
+    from colour_demosaicing import (
+        demosaicing_CFA_Bayer_bilinear,
+        demosaicing_CFA_Bayer_Malvar2004,
+        demosaicing_CFA_Bayer_Menon2007,
+    )
+
     demosaic_by_algorithm = {
         "bilinear": demosaicing_CFA_Bayer_bilinear,
         "malvar": demosaicing_CFA_Bayer_Malvar2004,
