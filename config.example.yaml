@@ -3,21 +3,32 @@
 #          *anchor_name       (reference an anchor)
 
 _shared:
-  - &fits_dir 'path\to\fits'
-  - &moon_registered_dir 'path\to\moon_registered'
-  - &sun_registered_dir 'path\to\sun_registered'
-  - &moon_stacks_dir 'path\to\moon_stacks'
-  - &sun_stacks_dir 'path\to\sun_stacks'
-  - &moon_hdr_dir 'path\to\moon_hdr'
-  - &sun_hdr_dir 'path\to\sun_hdr'
-  - &merged_hdr_dir 'path\to\merged_hdr'
+  - &raw_dir 'path/to/raw'
+  - &fits_dir 'path/to/fits'
+  - &moon_registered_dir 'path/to/moon_registered'
+  - &sun_registered_dir 'path/to/sun_registered'
+  - &moon_stacks_dir 'path/to/moon_stacks'
+  - &sun_stacks_dir 'path/to/sun_stacks'
+  - &moon_hdr_dir 'path/to/moon_hdr'
+  - &sun_hdr_dir 'path/to/sun_hdr'
+  - &merged_hdr_dir 'path/to/merged_hdr'
   - &group_keywords ["EXPTIME"]
   - &image_scale 1.00
 
+conversion:
+  raw_dir: *raw_dir
+  fits_dir: *fits_dir
+  flat_path: 'path/to/flats' # directory, master file, or null
+  bias_path: 'path/to/bias'  # directory, master file, or null
+  dark_path: 'path/to/dark'  # directory, master file, or null
+  debayer_algorithm: 'bilinear' # or 'malvar', 'menon'
+  calibration_outlier_threshold: null
+  save_master: true
+
 registration:
   fits_dir: *fits_dir
-  ref_filename: 'path\to\reference_image.fits'    # or null to auto-select
-  anchor_filenames: ['path\to\anchor_image.fits'] # or null to auto-select
+  ref_filename: 'path/to/reference_image.fits'    # or null to auto-select
+  anchor_filenames: ['path/to/anchor_image.fits'] # or null to auto-select
   moon_registered_dir: *moon_registered_dir
   sun_registered_dir: *sun_registered_dir
   group_keywords: *group_keywords

@@ -10,25 +10,29 @@ def compute_stacking_memory_requirements(
     width: int,
     num_channels: int,
     byte_per_pixel: int = 4,
+    has_weights: bool = True,
 ) -> int:
     '''Peak memory usage during stacking. It is attained during outlier rejection.'''
     stack_memory = height * width * num_channels * num_images * byte_per_pixel
-    weights_memory = height * width * num_images * byte_per_pixel
+    weights_memory = height * width * num_images * byte_per_pixel if has_weights else 0
     peak_rejection_memory = height * width * num_channels * (num_images * 2 + byte_per_pixel * 2) # see outlier_rejection notes
     return stack_memory + weights_memory + peak_rejection_memory
 
 
 def compute_rows_ranges_for_stack(
     num_images: int,
-    shape: tuple[int, int, int],
+    shape: tuple[int, ...],
     available_mem: int,
     dtype: np.dtype,
+    has_weights: bool = True,
 ) -> list[tuple[int, int]]:
-    height, width, num_channels = shape
-    required_output_mem = height * width * num_channels * dtype.itemsize * 2
+    height, width = shape[:2]
+    num_channels = shape[2] if len(shape) > 2 else 1
+    num_output_arrays = 2  # img + rejection map
+    required_output_mem = height * width * num_channels * dtype.itemsize * num_output_arrays
     if required_output_mem >= available_mem:
         raise MemoryError("Not enough available memory for output arrays.")
-    required_stacking_mem = compute_stacking_memory_requirements(num_images, height, width, num_channels, dtype.itemsize)
+    required_stacking_mem = compute_stacking_memory_requirements(num_images, height, width, num_channels, dtype.itemsize, has_weights)
     n_chunks = int(np.ceil(required_stacking_mem / (available_mem - required_output_mem)))
     required_chunk_mem = required_stacking_mem / n_chunks
     required_mem = required_chunk_mem + required_output_mem
