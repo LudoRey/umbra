@@ -21,7 +21,7 @@ conversion:
   flat_path: 'path/to/flats' # directory, master file, or null
   bias_path: 'path/to/bias'  # directory, master file, or null
   dark_path: 'path/to/dark'  # directory, master file, or null
-  debayer_algorithm: 'menon' # or 'malvar', 'bilinear'
+  debayer_algorithm: 'bilinear' # or 'malvar', 'menon'
   calibration_outlier_threshold: null
   save_master: true
 
