@@ -49,7 +49,7 @@ def select_anchors(
         first_filepath, last_filepath = sorted_filepaths[0], sorted_filepaths[-1]
         img, _ = imageio.read(first_filepath, verbose=False)
         bright_pixel_count = np.sum(img >= bright_relative_threshold * img.max())
-        if bright_pixel_count >= num_bright_pixels:
+        if bright_pixel_count >= num_bright_pixels and first_filepath != last_filepath:
             if group_identifier:
                 cprint(f"Selected group: {group_identifier}")
             anchor_filepaths = [first_filepath, last_filepath]
@@ -58,6 +58,6 @@ def select_anchors(
             print("\n".join(f"- {p}" for p in anchor_filenames))
             break
     if not anchor_filenames:
-        raise RuntimeError("Automatic anchor selection failed: no group found with a sufficient number of bright pixels. Please select anchors manually.")
+        raise RuntimeError("Automatic anchor selection failed: no group found with a sufficient number of bright pixels and at least two distinct images. Please select anchors manually.")
     cprint(f"Anchor images selected successfully.", color="green")
     return anchor_filenames
