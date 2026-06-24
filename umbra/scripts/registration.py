@@ -98,7 +98,7 @@ def main(
             _, moon_center, moon_radius = pipeline.preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, img_callback=img_callback, checkstate=checkstate)
             cprint(f"Interpolating:", style='bold')
             timestamp = fits.extract_timestamp(header)
-            print(f"Time delta between image and reference: {timestamp - ref_timestamp:>8.0f} sec")
+            print(f"Time delta: {timestamp - ref_timestamp} sec")
             rotation, sun_moon_translation = pipeline.interpolate_anchor_values(timestamp, rotation_interp, sun_moon_translation_interp)
             print(f"Interpolated anchor values:")
             print(f"- Rotation          : {np.rad2deg(rotation):>8.3f} deg")
