@@ -3,9 +3,8 @@ from types import ModuleType
 
 import numpy as np
 
-from umbra.common import bayer, convert, coords
+from umbra.common import bayer, context, convert, coords
 from umbra.common.terminal import cprint
-from umbra.common.typing import CheckStateCallback
 from umbra.common.fits import Header, extract_bayer_pattern
 from umbra.common.imageio.extensions import BITMAP, FITS, RAW, SUPPORTED
 from umbra.common.imageio._backends import bitmap, fits, raw
@@ -34,7 +33,6 @@ def read(
     to_float: bool = True,
     debayer: bool = False,
     verbose: bool = True,
-    checkstate: CheckStateCallback = lambda: None,
 ) -> tuple[np.ndarray, Header]:
     """Read any supported image file into ``(data, header)``.
 
@@ -56,7 +54,7 @@ def read(
         pattern = extract_bayer_pattern(header)
         if pattern is not None:
             data = bayer.debayer(data, pattern)
-    checkstate()
+    context.checkstate()
     return data, header
 
 
@@ -90,7 +88,6 @@ def write(
     header: Header | None,
     *,
     verbose: bool = True,
-    checkstate: CheckStateCallback = lambda: None,
 ) -> None:
     """Write image data and header to a file, dispatching by extension.
 
@@ -106,4 +103,4 @@ def write(
     if verbose:
         cprint(f"Writing {filepath}...")
     write(filepath, data, header)
-    checkstate()
+    context.checkstate()

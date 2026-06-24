@@ -2,10 +2,9 @@ import numpy as np
 import cv2
 import skimage as sk
 
-from umbra.common import coords, display, disk, filters, transform
+from umbra.common import context, coords, display, disk, filters, transform
 from umbra.common.terminal import cprint
 from umbra.registration import objective, optim
-from umbra.common.typing import CheckStateCallback, ImageCallback
 
 
 def preprocess(
@@ -13,9 +12,6 @@ def preprocess(
     moon_center: np.ndarray,
     moon_radius: float,
     sigma_high_pass_tangential: float,
-    *,
-    img_callback: ImageCallback,
-    checkstate: CheckStateCallback,
 ) -> tuple[np.ndarray, tuple[float, float]]:
     '''
     Expects a moon-preprocessed image as input.
@@ -25,16 +21,16 @@ def preprocess(
     # Hide moon
     print("Hiding moon...", end=" ", flush=True)
     img, mask = hide_moon(img, moon_center, moon_radius)
-    checkstate()
-    img_callback(img)
+    context.checkstate()
+    context.emit_image(img)
     print("Done.")
 
     # Preprocess image to register
     print("Applying bandpass filter...", end=" ", flush=True)
     mass_center = compute_mass_center(mask)
     img = apply_bandpass_filter(img, mass_center, sigma_high_pass_tangential)
-    checkstate()
-    img_callback(display.normalize(img))
+    context.checkstate()
+    context.emit_image(display.normalize(img))
     print("Done.")
     return img, mass_center
 
@@ -87,17 +83,14 @@ def compute_transform(
     ref_mass_center: tuple[float, float],
     max_iter: int,
     error_overlay_opacity: float,
-    *,
-    img_callback: ImageCallback,
-    checkstate: CheckStateCallback,
 ) -> sk.transform.EuclideanTransform:
     '''
     Returns the parameters of the estimated transform "ref_img -> img".
     This transform is parametrized as a rigid transform, where the center of rotation is ref_mass_center.
     '''
     # Display the two images
-    checkstate()
-    img_callback(red_cyan_blend(ref_img, img, error_overlay_opacity=error_overlay_opacity))
+    context.checkstate()
+    context.emit_image(red_cyan_blend(ref_img, img, error_overlay_opacity=error_overlay_opacity))
 
     # Initialize transform parameters
     cprint("Initializing transform:", style='bold')
@@ -114,11 +107,11 @@ def compute_transform(
     delta_min = np.array([1e-4, 1e-3, 1e-3]) # want more precision on the angle
 
     def optim_callback(iteration: int, x: np.ndarray, delta: np.ndarray | None, f: float) -> None:
-        checkstate()
+        context.checkstate()
         # GUI callback
         theta, tx, ty = obj.convert_x_to_params(x)
         tform = transform.centered_rigid_transform(center=ref_mass_center, rotation=theta, translation=(tx,ty))
-        img_callback(red_cyan_blend(ref_img, transform.warp(img, tform.inverse.params), error_overlay_opacity=error_overlay_opacity))
+        context.emit_image(red_cyan_blend(ref_img, transform.warp(img, tform.inverse.params), error_overlay_opacity=error_overlay_opacity))
 
         # Display info
         dtheta, dtx, dty = obj.convert_x_to_params(delta) if delta is not None else (None, None, None)

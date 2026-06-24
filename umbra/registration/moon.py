@@ -6,16 +6,13 @@ import cv2
 import warnings
 import astropy.io.fits
 
+from umbra.common import context
 from umbra.common.terminal import cprint
-from umbra.common.typing import CheckStateCallback, ImageCallback
 
 
 def preprocess(
     img: np.ndarray,
     num_clipped_pixels: float,
-    *,
-    checkstate: CheckStateCallback,
-    img_callback: ImageCallback,
 ) -> np.ndarray:
     cprint("Moon preprocessing:", style='bold')
     # Convert to grayscale float32
@@ -26,23 +23,20 @@ def preprocess(
     # Rescale and clip pixels to make moon border more defined
     print(f"Clipping {num_clipped_pixels:.0f} pixels...", end=" ", flush=True)
     img, threshold = clip_brightest_pixels(img, num_clipped_pixels)
-    checkstate()
-    img_callback(img)
+    context.checkstate()
+    context.emit_image(img)
     print(f"Threshold : {threshold:.4f}.")
     return img
 
 def detect_moon(
     img: np.ndarray,
     num_edge_pixels: float,
-    *,
-    checkstate: CheckStateCallback,
-    img_callback: ImageCallback,
 ) -> tuple[np.ndarray, float]:
     # Compute image gradient (edges)
     print(f"Computing edge map...", end=" ", flush=True)
     edge_map = compute_canny_edge_map(img, num_edge_pixels)
     edge_coords = np.column_stack(np.nonzero(edge_map))
-    checkstate()
+    context.checkstate()
     print(f"Found {len(edge_coords)} edge pixels.")
 
     # RANSAC fitting
@@ -52,8 +46,8 @@ def detect_moon(
     cprint("Detecting moon:", style='bold')
     print("RANSAC circle fitting...", end=" ", flush=True)
     (moon_y, moon_x, moon_radius), inliers_coords, outliers_coords = ransac_circle_fit(edge_coords, min_samples)
-    checkstate()
-    img_callback(make_ransac_img(img, inliers_coords, outliers_coords))
+    context.checkstate()
+    context.emit_image(make_ransac_img(img, inliers_coords, outliers_coords))
     print(f"Found {len(inliers_coords)} inliers.")
     print("Circle parameters:")
     print(f"- Center: ({moon_x:.2f}, {moon_y:.2f})")
