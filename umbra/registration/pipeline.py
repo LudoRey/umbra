@@ -11,7 +11,6 @@ import skimage as sk
 from umbra import registration
 from umbra.common import fits, imageio, transform
 from umbra.common.terminal import cprint
-from umbra.common.typing import CheckStateCallback, ImageCallback
 
 
 def compute_moon_detection_params(
@@ -94,13 +93,10 @@ def preprocess_and_detect_moon(
     img: np.ndarray,
     num_clipped_pixels: float,
     num_edge_pixels: float,
-    *,
-    checkstate: CheckStateCallback,
-    img_callback: ImageCallback,
 ) -> tuple[np.ndarray, np.ndarray, float]:
     """Preprocess an image and detect the moon, returning (preprocessed_img, moon_center, moon_radius)."""
-    img = registration.moon.preprocess(img, num_clipped_pixels, checkstate=checkstate, img_callback=img_callback)
-    moon_center, moon_radius = registration.moon.detect_moon(img, num_edge_pixels, checkstate=checkstate, img_callback=img_callback)
+    img = registration.moon.preprocess(img, num_clipped_pixels)
+    moon_center, moon_radius = registration.moon.detect_moon(img, num_edge_pixels)
     return img, moon_center, moon_radius
 
 
@@ -112,9 +108,6 @@ def process_anchors(
     sigma_high_pass_tangential: float,
     max_iter: int,
     error_overlay_opacity: float,
-    *,
-    img_callback: ImageCallback = lambda _img: None,
-    checkstate: CheckStateCallback = lambda: None,
 ) -> tuple[list[astropy.io.fits.Header], list[np.ndarray], list[float], list[sk.transform.EuclideanTransform], list[sk.transform.EuclideanTransform]]:
     """Load anchors, detect moon, and sun-align images.
 
@@ -132,9 +125,9 @@ def process_anchors(
 
     for i, filename in enumerate(anchor_filenames):
         cprint(f"Processing anchor image {filename} ({i+1}/{len(anchor_filenames)}):", style='bold', color='cyan')
-        img, header = imageio.read(fits_dir / filename, checkstate=checkstate)
-        img, moon_center, moon_radius = preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, checkstate=checkstate, img_callback=img_callback)
-        preprocessed_img, mass_center = registration.sun.preprocess(img, moon_center, moon_radius, sigma_high_pass_tangential, img_callback=img_callback, checkstate=checkstate)
+        img, header = imageio.read(fits_dir / filename)
+        img, moon_center, moon_radius = preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels)
+        preprocessed_img, mass_center = registration.sun.preprocess(img, moon_center, moon_radius, sigma_high_pass_tangential)
         cprint(f"Anchor image {filename} processed successfully ({i+1}/{len(anchor_filenames)}).", color='green')
 
         if prev_preprocessed_img is not None and prev_mass_center is not None:
@@ -142,7 +135,6 @@ def process_anchors(
             tform = registration.sun.compute_transform(
                 prev_preprocessed_img, preprocessed_img,
                 prev_mass_center, max_iter, error_overlay_opacity,
-                img_callback=img_callback, checkstate=checkstate,
             )
             sun_tforms_pairwise.append(tform)
             cprint(f"Anchor transform {i} -> {i+1} computed successfully.", color='green')

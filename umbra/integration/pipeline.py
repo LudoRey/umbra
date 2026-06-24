@@ -5,9 +5,8 @@ from pathlib import Path
 import astropy.io.fits
 import numpy as np
 
-from umbra.common import coords, fits, imageio
+from umbra.common import context, coords, fits, imageio
 from umbra.common.terminal import cprint
-from umbra.common.typing import CheckStateCallback, ImageCallback
 from umbra.integration import io, memory, rejection, reduce
 
 # (stack, headers, region) -> weights of shape (N, H, W)
@@ -18,9 +17,6 @@ def integrate(
     filepaths: Sequence[Path | str],
     outlier_threshold: float | None = None,
     weight_fn: WeightFn | None = None,
-    *,
-    img_callback: ImageCallback = lambda _img: None,
-    checkstate: CheckStateCallback = lambda: None,
 ) -> tuple[np.ndarray, astropy.io.fits.Header, np.ndarray]:
     """
     Stack a list of images into a single master image, in a memory-aware (chunked) manner.
@@ -43,10 +39,9 @@ def integrate(
     weight_fn : callable or None
         Optional ``(stack, headers, region) -> weights`` callback returning per-pixel
         weights of shape (N, H, W). When None, a uniform mean ignoring NaNs is computed.
-    img_callback : callable
-        Called with the current image after each chunk (for live preview).
-    checkstate : callable
-        Called to allow graceful cancellation.
+
+    Live preview (``context.emit_image``) and cancellation (``context.checkstate``)
+    are read from the ambient pipeline context.
 
     Returns
     -------
@@ -59,7 +54,7 @@ def integrate(
         map. When ``weight_fn`` is None, it is the fraction of non-rejected frames per pixel.
     """
     if outlier_threshold is None and weight_fn is None:
-        return integrate_no_rejection(filepaths, img_callback=img_callback, checkstate=checkstate)
+        return integrate_no_rejection(filepaths)
 
     num_images = len(filepaths)
     shape = imageio.read_shape(filepaths[0])  # (H, W) or (H, W, C)
@@ -84,20 +79,20 @@ def integrate(
     for chunk_idx, (row_start, row_end) in enumerate(rows_ranges, start=1):
         cprint(f"Processing chunk {chunk_idx}/{num_chunks} (rows {row_start} -> {row_end})", style="bold")
         region = coords.Region(width=shape[1], height=row_end-row_start, left=0, top=row_start)
-        stack, headers = io.read_stack(filepaths, region, checkstate=checkstate)
+        stack, headers = io.read_stack(filepaths, region)
         # Pixel rejection
         weights = weight_fn(stack, headers, region) if weight_fn is not None else None
-        checkstate()
+        context.checkstate()
         if outlier_threshold is not None:
             rejection.outlier_rejection(stack, outlier_threshold)
-            checkstate()
+            context.checkstate()
         # Update output arrays
         if weights is None:
             reduce.average_ignore_nan(stack, img[row_start:row_end], total_weights[row_start:row_end])
         else:
             reduce.weighted_average_ignore_nan(stack, weights, img[row_start:row_end], total_weights[row_start:row_end])
-        checkstate()
-        img_callback(img)
+        context.checkstate()
+        context.emit_image(img)
         # Free memory
         del stack, weights
         gc.collect()
@@ -108,9 +103,6 @@ def integrate(
 
 def integrate_no_rejection(
     filepaths: Sequence[Path | str],
-    *,
-    img_callback: ImageCallback = lambda _img: None,
-    checkstate: CheckStateCallback = lambda: None,
 ) -> tuple[np.ndarray, astropy.io.fits.Header, np.ndarray]:
     """
     Stack a list of images into a single master image via a plain mean.
@@ -122,10 +114,9 @@ def integrate_no_rejection(
     ----------
     filepaths : sequence of paths
         The images to stack.
-    img_callback : callable
-        Called with the running mean after each frame (for live preview).
-    checkstate : callable
-        Called to allow graceful cancellation.
+
+    Live preview (``context.emit_image``, the running mean after each frame) and
+    cancellation (``context.checkstate``) are read from the ambient pipeline context.
 
     Returns
     -------
@@ -144,14 +135,14 @@ def integrate_no_rejection(
     headers: list[astropy.io.fits.Header] = []
     for i, filepath in enumerate(filepaths, start=1):
         cprint(f"Accumulating image {i}/{num_images}", style="bold")
-        data, header = imageio.read(filepath, verbose=False, checkstate=checkstate)
+        data, header = imageio.read(filepath, verbose=False)
         img += data
         headers.append(header)
-        checkstate()
-        img_callback(img / i)
+        context.checkstate()
+        context.emit_image(img / i)
 
     img /= num_images
-    img_callback(img)
+    context.emit_image(img)
 
     total_weights = np.ones(shape, dtype=np.float32)
     output_header = fits.intersect(headers)

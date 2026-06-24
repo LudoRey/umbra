@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from umbra.common import fits, imageio
 from umbra.common.terminal import cprint
 from umbra import integration
-from umbra.common.typing import CheckStateCallback, ImageCallback
 
 
 # @trackers.track_info
@@ -19,10 +18,6 @@ def main(
     moon_rejection: bool = False,
     extra_radius_pixels: float = 0,
     smoothness: float = 0,
-    # GUI interactions
-    *,
-    img_callback: ImageCallback = lambda _img: None,
-    checkstate: CheckStateCallback = lambda: None,
 ) -> None:
     # Moon rejection produces per-pixel weights; otherwise a uniform mean is used.
     weight_fn = None
@@ -40,11 +35,11 @@ def main(
         cprint(f"Stacking {len(filepaths)} images from group {group_identifier} ({group_idx}/{num_groups}):", style="bold", color="cyan")
 
         img, output_header, total_weights = integration.integrate(
-            filepaths, outlier_threshold, weight_fn, img_callback=img_callback, checkstate=checkstate)
+            filepaths, outlier_threshold, weight_fn)
 
         group_name = " - ".join([f"{group_keywords[i]}_{group_values[i]}" for i in range(len(group_keywords))])
-        imageio.write(os.path.join(stacks_dir, f"{group_name}.fits"), img, output_header, checkstate=checkstate)
-        imageio.write(os.path.join(stacks_dir, f"{group_name}_rejection.fits"), total_weights, None, checkstate=checkstate)
+        imageio.write(os.path.join(stacks_dir, f"{group_name}.fits"), img, output_header)
+        imageio.write(os.path.join(stacks_dir, f"{group_name}_rejection.fits"), total_weights, None)
         cprint(f"Group {group_identifier} stacked successfully ({group_idx}/{num_groups}).", color="green")
     cprint(f"Stacking completed successfully.", style='bold', color='green')
 

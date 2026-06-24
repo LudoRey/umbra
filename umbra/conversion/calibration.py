@@ -4,7 +4,6 @@ import numpy as np
 
 from umbra.common import imageio
 from umbra.common.terminal import cprint
-from umbra.common.typing import CheckStateCallback
 from umbra import integration
 
 
@@ -61,8 +60,6 @@ def load_or_create_master(
     type: str,
     outlier_threshold: float | None = None,
     save_master: bool = True,
-    *,
-    checkstate: CheckStateCallback = lambda: None,
 ) -> np.ndarray:
     """
     Resolve a calibration master frame.
@@ -78,9 +75,9 @@ def load_or_create_master(
         if not filepaths:
             raise ValueError(f"No supported image files found in {path}.")
         cprint(f"Stacking {len(filepaths)} {type} images:", style="bold", color="cyan")
-        img, header, _ = integration.integrate(filepaths, outlier_threshold, checkstate=checkstate)
+        img, header, _ = integration.integrate(filepaths, outlier_threshold)
         if save_master:
-            imageio.write(path.parent / f"master_{type}.fits", img, header, checkstate=checkstate)
+            imageio.write(path.parent / f"master_{type}.fits", img, header)
         cprint(f"{type.capitalize()} images stacked successfully.", color="green")
         return img
-    return imageio.read(path, checkstate=checkstate)[0]
+    return imageio.read(path)[0]
