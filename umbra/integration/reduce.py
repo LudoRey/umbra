@@ -10,7 +10,7 @@ def weighted_average_ignore_nan(
     """
     Compute the weighted average of a stack of images.
     Wheere pixels are NaN in the stack, they are ignored in the computation (i.e., treated as zero weight).
-    We assume that for each pixel there is at least one image in the stack with a non-zero weight.
+    Pixels whose total weight is zero (e.g. NaN across the whole stack) are set to 0.
 
     Parameters
     ----------
@@ -33,7 +33,9 @@ def weighted_average_ignore_nan(
         weights_c[mask[..., c]] = 0
         np.einsum('nhw,nhw->hw', stack[..., c], weights_c, out=out_img[..., c])
         np.sum(weights_c, axis=0, out=out_total_weights[..., c])
-        out_img[..., c] /= out_total_weights[..., c]
+        # Where total weight is 0, out_img is already 0 (sum of 0*0); skip the division to avoid 0/0 NaN.
+        np.divide(out_img[..., c], out_total_weights[..., c], out=out_img[..., c],
+                  where=out_total_weights[..., c] != 0)
     out_total_weights /= N
     print("Done.")
 
@@ -59,5 +61,7 @@ def average_ignore_nan(
     N = stack.shape[0]
     out_img[:] = bn.nanmean(stack, axis=0)
     np.sum(~np.isnan(stack), axis=0, out=out_total_weights)
+    # Pixels that are NaN across the whole stack have a count of 0; set them to 0.
+    out_img[out_total_weights == 0] = 0
     out_total_weights /= N
     print("Done.")

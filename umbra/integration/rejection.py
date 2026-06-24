@@ -82,26 +82,15 @@ def moon_rejection(
     N, H, W = stack.shape[0:3]
     if region is None:
         region = coords.Region.from_shape((H, W))
-    # Track preferred index map to fill in all-masked pixels later
-    max_dist_map = np.zeros((H, W), dtype=stack.dtype)
-    preferred_idx_map = np.zeros((H, W), dtype=np.int16)
     weights = np.zeros((N, H, W), dtype=stack.dtype)
     for i, header in enumerate(headers):
         # Compute moon weights and distance map
-        moon_x, moon_y, radius = cast(float, header["MOON-X"]), cast(float, header["MOON-Y"]), cast(float, header["MOON-R"]) + extra_radius_pixels
+        moon_x, moon_y, radius = cast(float, header["MOON-X"]), cast(float, header["MOON-Y"]), cast(float, header["MOON-R"]) + extra_radius_pixels # TODO: unify radii
         dist_map = disk.distance_map(np.array([moon_x, moon_y]), region)
         if smoothness == 0:
             weights[i] = (dist_map > radius)
         else:
             weights[i] = np.clip((dist_map - radius) / smoothness, 0, 1)
-        # Update preferred index map
-        update_mask = dist_map > max_dist_map
-        preferred_idx_map[update_mask] = i
-        max_dist_map[update_mask] = dist_map[update_mask]
-    # Ensure no pixel has all weights zero by assigning weight 1 to preferred index
-    all_zero_pixels = np.nonzero(np.all(weights == 0, axis=0))
-    preferred_image_indices = preferred_idx_map[all_zero_pixels]
-    weights[(preferred_image_indices, *all_zero_pixels)] = 1.0
     # Set fully rejected pixels to NaN in the stack
     mask = weights == 0
     stack[mask] = np.nan
