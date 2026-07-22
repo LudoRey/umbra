@@ -37,9 +37,8 @@ def main(
         img, output_header, total_weights = integration.integrate(
             filepaths, outlier_threshold, weight_fn)
 
-        group_name = " - ".join([f"{group_keywords[i]}_{group_values[i]}" for i in range(len(group_keywords))])
-        imageio.write(os.path.join(stacks_dir, f"{group_name}.fits"), img, output_header)
-        imageio.write(os.path.join(stacks_dir, f"{group_name}_rejection.fits"), total_weights, None)
+        imageio.write(os.path.join(stacks_dir, f"stack_{group_idx}.fits"), img, output_header)
+        imageio.write(os.path.join(stacks_dir, f"rejection_map_{group_idx}.fits"), total_weights, None)
         cprint(f"Group {group_identifier} stacked successfully ({group_idx}/{num_groups}).", color="green")
     cprint(f"Stacking completed successfully.", style='bold', color='green')
 
