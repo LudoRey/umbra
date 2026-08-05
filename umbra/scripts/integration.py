@@ -1,6 +1,8 @@
 import os
 from collections.abc import Sequence
 
+import numpy as np
+
 from umbra.common import fits, imageio
 from umbra.common.terminal import cprint
 from umbra import integration
@@ -36,6 +38,10 @@ def main(
 
         img, output_header, total_weights = integration.integrate(
             filepaths, outlier_threshold, weight_fn)
+
+        group_headers = [filepath_to_header[p] for p in filepaths]
+        moon_header = fits.aggregate(group_headers, {"MOON-X": np.mean, "MOON-Y": np.mean, "MOON-R": np.mean})
+        output_header = fits.combine([output_header, moon_header])
 
         imageio.write(os.path.join(stacks_dir, f"stack_{group_idx}.fits"), img, output_header)
         imageio.write(os.path.join(stacks_dir, f"rejection_map_{group_idx}.fits"), total_weights, None)
