@@ -9,6 +9,7 @@ _shared:
   - &sun_registered_dir 'path/to/sun_registered'
   - &moon_stacks_dir 'path/to/moon_stacks'
   - &sun_stacks_dir 'path/to/sun_stacks'
+  - &merged_stacks_dir 'path/to/merged_stacks'
   - &moon_hdr_dir 'path/to/moon_hdr'
   - &sun_hdr_dir 'path/to/sun_hdr'
   - &merged_hdr_dir 'path/to/merged_hdr'
@@ -52,6 +53,12 @@ sun_integration:
   outlier_threshold: 3
   moon_rejection: true
   extra_radius_pixels: 2
+  smoothness: 10.0
+
+fusion:
+  sun_stacks_dir: *sun_stacks_dir
+  moon_stacks_dir: *moon_stacks_dir
+  merged_stacks_dir: *merged_stacks_dir
   smoothness: 10.0
 
 moon_hdr_composition:
