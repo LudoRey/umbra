@@ -1,3 +1,5 @@
+"""Dead: not runnable, pending a rewrite onto the merged stacks produced by integration.py."""
+
 import os
 import numpy as np
 
@@ -103,14 +105,3 @@ def main(
     output_header = fits.intersect(headers) # TODO: SUN-X and SUN-Y for filters
 
     imageio.write(os.path.join(sun_hdr_dir, "hdr.fits"), hdr_img, output_header)
-    
-if __name__ == "__main__":
-    import sys
-    import yaml
-    from umbra.common.terminal import ColorTerminalStream
-    sys.stdout = ColorTerminalStream()
-
-    with open("config.yaml") as f:
-        config = yaml.safe_load(f)
-
-    main(**config["sun_hdr_composition"])
