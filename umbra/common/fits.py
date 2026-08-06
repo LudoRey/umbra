@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from collections.abc import Callable, Sequence
 from typing import Any, cast
@@ -157,6 +158,19 @@ def format_keyword(keyword: str) -> str:
         return "Timestamp"
     else:
         return keyword
+
+
+def format_group_name(group_values: Sequence[str], keywords: Sequence[str]) -> str:
+    """
+    Build a filename-safe name identifying a group returned by :func:`group_filepaths`.
+
+    Empty when no keywords are used, since there is then a single unnamed group:
+    callers are expected to handle that case (e.g. "stack.fits" rather than "stack_.fits").
+    Characters that are awkward in filenames -- including the decimal point -- are replaced
+    with a dash, so "0.00050" becomes "0-00050".
+    """
+    parts = [f"{keyword}={value}" for keyword, value in zip(keywords, group_values)]
+    return re.sub(r"[^A-Za-z0-9=_-]", "-", "_".join(parts))
 
 
 def format_keyword_value(keyword_value: Any, keyword: str) -> str:

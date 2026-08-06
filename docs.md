@@ -26,7 +26,7 @@ pip install -e .
 The main scripts are located in `umbra/scripts`. All parameters are defined in the configuration file `config.example.yaml`: you should copy this file to `config.yaml` and change the parameters as needed!
 
 Some parameters are shared among different scripts, and are defined at the top of `config.yaml`:
-- `fits_dir`, `moon_registered_dir`, `sun_registered_dir`, `moon_stacks_dir`, `sun_stacks_dir`, `moon_stacks_dir`, `sun_stacks_dir`, `moon_hdr_dir`, `sun_hdr_dir`, `merged_hdr_dir` : Input/output directories for the scripts.
+- `raw_dir`, `fits_dir`, `moon_registered_dir`, `sun_registered_dir`, `stacks_dir` : Input/output directories for the scripts.
 - `image_scale` : Resolution in arcseconds/pixel.
 - `group_keywords` : List of FITS keywords corresponding to settings that vary across the exposures (typically, "EXPTIME" and optionally "ISOSPEED" or "GAIN" if the gain was changed). These keywords will automatically determine groups of images to be stacked together.
 
@@ -44,11 +44,21 @@ The script `registration.py` simultaneously performs a moon-based and a sun-base
 
 ## Integration
 
-The script `integration.py` integrates the previously registered images located in `moon_registered_dir` and `sun_registered_dir`. A stack is generated for each group (see `group_keywords`). The output directories are defined by `moon_stacks_dir` and `sun_stacks_dir`.
+The script `integration.py` integrates the previously registered images located in `moon_registered_dir` and `sun_registered_dir`, and merges the two alignments into a single image. One stack is generated for each group (see `group_keywords`) in the output directory `stacks_dir`.
 
-There are extra parameters in the sections `moon_integration` and `sun_integration` of the configuration file. The threshold `outlier_threshold` is used by the sigma-clipping routine and is given in units of standard deviation. When stacking sun-registered images, the `moon_rejection` parameter can be set to true to reject the moon pixels. This is necessary to avoid "ghosting" artifacts. For each sub, a moon mask is computed, which depends on two additional parameters : 
-- `extra_radius_pixels` : extra amount of pixels added to the radius of the moon mask. Increasing this parameter will lead to fewer artifacts at the cost of worse SNR : it should be as close to 0 as possible.
-- `smoothness` : smoothness of the mask in pixels. Increasing this parameter leads to a smoother transition at the cost of worse SNR.
+Every group is stacked twice from the same exposures: once from the sun-registered images and once from the moon-registered ones. In the sun-registered images the corona is aligned but the moon drifts, so the moon has to be rejected; in the moon-registered images it is the other way around. Merging the two restores, at the reference frame's moon position, what the sun stack had to reject.
+
+The threshold `outlier_threshold` is used by the sigma-clipping routine and is given in units of standard deviation.
+
+When stacking the sun-registered images, the moon pixels are rejected to avoid "ghosting" artifacts. For each sub, a moon mask is computed, which depends on two parameters :
+- `rejection_extra_radius` : extra amount of pixels added to the radius of the moon mask. Increasing this parameter will lead to fewer artifacts at the cost of worse SNR : it should be as close to 0 as possible.
+- `rejection_smoothness` : smoothness of the mask in pixels. Increasing this parameter leads to a smoother transition at the cost of worse SNR.
+
+The merge takes the moon-registered image inside the moon's disk and the sun-registered one outside it, with a transition annulus straddling the limb where the darker of the two is kept :
+- `blend_smoothness` : half-width of that annulus in pixels, i.e. how far the transition reaches on each side of the limb. It only needs to cover the fact that the limb is not a perfectly sharp disk (blur, lunar relief, residual registration error), so a few pixels is enough : a large value blurs lunar detail outwards and the inner corona inwards.
+
+<!--
+Outdated: `sun_hdr_composition.py` and `moon_hdr_composition.py` are no longer runnable, pending a rewrite onto the merged stacks produced by `integration.py`.
 
 ## HDR composition
 
@@ -60,13 +70,7 @@ In essence, the HDR algorithm performs a weighted combination, where the pixels 
 - `high_clipping_threshold`, `high_clipping_smoothness` : values in [0,1]. The weight function is equal to 1 for pixel values below `high_clipping_threshold`, and equal to 0 above `high_clipping_threshold`+`high_clipping_smoothness`. Between the two, it is a simple linear interpolation. 
 - `low_clipping_threshold`, `low_clipping_smoothness` : analogous to `high_clipping_threshold` and `high_clipping_smoothness`.
 
-Moreover, `sun_hdr_composition.py` uses a fitting routine before combining the images. The fit is computed on a region of appropriate brightness (as defined by `high_clipping_threshold` and `low_clipping_threshold`), which also excludes the moon. Similarly to `sun_integration.py`, the script uses an additional parameter for the moon mask :
+Moreover, `sun_hdr_composition.py` uses a fitting routine before combining the images. The fit is computed on a region of appropriate brightness (as defined by `high_clipping_threshold` and `low_clipping_threshold`), which also excludes the moon. The script uses an additional parameter for the moon mask :
 - `extra_radius_pixels` : extra amount of pixels added to the radius of the moon mask.
+-->
 
-## Moon and sun composition 
-
-The script `merge_sun_moon.py` combines the previously generated HDR images located in `moon_hdr_dir` and `sun_hdr_dir`. The output directory is defined by `merged_hdr_dir`. 
-
-The script uses a moon mask (once again!), but this time it is not approximated by a disk but rather directly estimated from the image. 
-- `moon_threshold` : value in [0,1]. Only moon pixels below this value will be considered for the initial moon mask. This value should be increased to contain more of the moon edge, but it should not be too high (to avoid artifacts). 
-- `sigma` : value above 0. Roughly corresponds to "outwards-only" Gaussian smoothing (but there is more to it, more explanations will come later).
