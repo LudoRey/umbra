@@ -8,30 +8,21 @@ Umbra: Total Solar Eclipse Image Processing Software
   <sub><em>Images provided by @astro_uri on Instagram</em></sub>
 </p>
 
-# Install
+> [!IMPORTANT]
+> **Umbra now has a website: [umbraprocessing.com](https://umbraprocessing.com)**
+>
+> Head there for downloads and guides — this repository only contains the source code for the algorithms (see below).
 
-## Windows
+Umbra comes in two forms:
 
-Download `umbra-<version>-windows-x64-setup.exe` from the [latest release](https://github.com/LudoRey/umbra/releases/latest) and open it. Because the app is not yet signed, Windows SmartScreen may warn that it "protected your PC"; click **More info**, then **Run anyway**.
-
-**Keep the default install location**. The installer lets you choose where to install Umbra, but keep the default (`%LOCALAPPDATA%\Umbra`). Automatic updates work by replacing Umbra's own folder, which is only possible where it can write without administrator rights — installing elsewhere (in particular `Program Files`) will break updates.
-
-## macOS (Apple Silicon)
-
-Download `umbra-<version>-macos-arm64.pkg` from the [latest release](https://github.com/LudoRey/umbra/releases/latest) and open it. Because the app is not yet notarized, macOS blocks it on first open with a message that it "could not verify" the package. To allow it:
-
-1. Click **Done** on the warning (not *Move to Trash*).
-2. Open **System Settings → Privacy & Security**.
-3. Scroll down to the **Security** section, find the message about `umbra-<version>-macos-arm64.pkg`, and click **Open Anyway**.
-4. Confirm **Open Anyway** and enter your password when prompted.
-
-Open Umbra from **Spotlight** (press ⌘ + Space and type "Umbra") or from **Launchpad**. The installer puts it in the Applications folder inside your Home folder, which is not the Applications shortcut in the Finder sidebar (that one is the system-wide folder). Leave it there: moving it elsewhere, including into the system Applications folder, will break automatic updates.
+- **The Umbra app** — a desktop application for Windows and macOS. This is the one you want, unless you would rather drive the pipeline from a terminal, or want to see how the algorithms work.
+- **The `umbra` package** — the Python implementation of those algorithms, which is what this repository holds. No GUI: you set the parameters in a configuration file and run the scripts. See the [documentation](docs.md) to get started.
 
 # Join the Community
 
 Have questions, want to discuss solar eclipses, or get help with Umbra? 
 [Join our Discord server](https://discord.gg/Ayu7qaZETq).
 
-# Source code
+# License
 
-The source code for the algorithms is available if you want to run them without using the GUI. See the [documentation](docs.md) for more information. 
+The `umbra` package is source-available under the [PolyForm Perimeter License 1.0.1](LICENSE.md). Run it, modify it and share it for any purpose, except providing others a product that competes with Umbra.
