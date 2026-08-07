@@ -7,11 +7,7 @@ _shared:
   - &fits_dir 'path/to/fits'
   - &moon_registered_dir 'path/to/moon_registered'
   - &sun_registered_dir 'path/to/sun_registered'
-  - &moon_stacks_dir 'path/to/moon_stacks'
-  - &sun_stacks_dir 'path/to/sun_stacks'
-  - &moon_hdr_dir 'path/to/moon_hdr'
-  - &sun_hdr_dir 'path/to/sun_hdr'
-  - &merged_hdr_dir 'path/to/merged_hdr'
+  - &stacks_dir 'path/to/stacks'
   - &group_keywords ["EXPTIME"]
   - &image_scale 1.00
 
@@ -39,45 +35,12 @@ registration:
   max_iter: 10
   error_overlay_opacity: 0.75
 
-moon_integration:
-  registered_dir: *moon_registered_dir
-  stacks_dir: *moon_stacks_dir
-  group_keywords: *group_keywords
-  outlier_threshold: 3
-
-sun_integration:
-  registered_dir: *sun_registered_dir
-  stacks_dir: *sun_stacks_dir
-  group_keywords: *group_keywords
-  outlier_threshold: 3
-  moon_rejection: true
-  extra_radius_pixels: 2
-  smoothness: 10.0
-
-moon_hdr_composition:
-  moon_stacks_dir: *moon_stacks_dir
-  moon_hdr_dir: *moon_hdr_dir
-  group_keywords: *group_keywords
-  low_clipping_threshold: 0.005
-  low_smoothness: 0.001
-  high_clipping_threshold: 0.1 # if exptimes[i+1]/exptimes[i] = k, then we should have high/low << k
-  high_smoothness: 0.01
-
-sun_hdr_composition:
-  sun_stacks_dir: *sun_stacks_dir
-  sun_hdr_dir: *sun_hdr_dir
+integration:
   moon_registered_dir: *moon_registered_dir
+  sun_registered_dir: *sun_registered_dir
+  stacks_dir: *stacks_dir
   group_keywords: *group_keywords
-  image_scale: *image_scale
-  extra_radius_pixels: 10
-  low_clipping_threshold: 0.005
-  low_smoothness: 0.001
-  high_clipping_threshold: 0.1 # if exptimes[i+1]/exptimes[i] = k, then we should have high/low << k
-  high_smoothness: 0.01
-
-merge_sun_moon:
-  sun_hdr_dir: *sun_hdr_dir
-  moon_hdr_dir: *moon_hdr_dir
-  merged_hdr_dir: *merged_hdr_dir
-  sigma: 2
-  moon_threshold: 0.002
+  outlier_threshold: 3
+  rejection_extra_radius: 2
+  rejection_smoothness: 10.0
+  blend_smoothness: 3.0

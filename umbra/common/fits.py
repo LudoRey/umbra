@@ -1,5 +1,6 @@
+import re
 from pathlib import Path
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any, cast
 
 import dateutil.parser
@@ -59,6 +60,29 @@ def intersect(headers: Sequence[Header]) -> Header:
     common = set.intersection(*hashes)
 
     return Header([card for card in headers[0].cards if hash_card(card) in common])
+
+
+def aggregate(headers: Sequence[Header], reducers: dict[str, Callable[[list], Any]]) -> Header:
+    """
+    Merge a sequence of headers into one by reducing each given keyword across frames.
+
+    Like :func:`combine`, but rather than letting later headers override earlier ones,
+    each keyword in ``reducers`` is set to ``reduce([per-frame values])`` (comment taken
+    from the first header that has it). Keywords absent from every input header are
+    skipped. Returns a new header; the inputs are not modified.
+
+    This is meant to recover keywords that :func:`intersect` drops because they vary
+    across frames -- whether from last-ULP float noise (e.g. a reference position
+    recomputed per frame) or genuine per-frame differences (e.g. a detected radius).
+    """
+    cards = []
+    for keyword, reduce in reducers.items():
+        values = [header[keyword] for header in headers if keyword in header]
+        if not values:
+            continue
+        comment = next(header.comments[keyword] for header in headers if keyword in header)
+        cards.append(astropy.io.fits.Card(keyword, reduce(values), comment))
+    return Header(cards)
 
 
 def group_filepaths(filepath_to_header: dict[Path, Header], keywords: Sequence[str]) -> dict[tuple[str, ...], list[Path]]:
@@ -134,6 +158,19 @@ def format_keyword(keyword: str) -> str:
         return "Timestamp"
     else:
         return keyword
+
+
+def format_group_name(group_values: Sequence[str], keywords: Sequence[str]) -> str:
+    """
+    Build a filename-safe name identifying a group returned by :func:`group_filepaths`.
+
+    Empty when no keywords are used, since there is then a single unnamed group:
+    callers are expected to handle that case (e.g. "stack.fits" rather than "stack_.fits").
+    Characters that are awkward in filenames -- including the decimal point -- are replaced
+    with a dash, so "0.00050" becomes "0-00050".
+    """
+    parts = [f"{keyword}={value}" for keyword, value in zip(keywords, group_values)]
+    return re.sub(r"[^A-Za-z0-9=_-]", "-", "_".join(parts))
 
 
 def format_keyword_value(keyword_value: Any, keyword: str) -> str:

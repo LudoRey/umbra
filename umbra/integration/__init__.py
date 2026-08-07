@@ -1,2 +1,2 @@
-from . import io, memory, rejection, reduce
+from . import fusion, io, memory, rejection, reduce
 from .pipeline import integrate
