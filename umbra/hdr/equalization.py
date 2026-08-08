@@ -1,11 +1,5 @@
+"""Fitting one stack onto the brightness scale of another, as a function of the angle around the moon."""
 import numpy as np
-from scipy import interpolate
-
-def saturation_weighting(img, low, high, low_smoothness, high_smoothness):
-    low_weights = np.clip((img + low_smoothness - low) / low_smoothness, 0, 1)
-    high_weights = np.clip((- img + high_smoothness + high) / high_smoothness, 0, 1)
-    weights = low_weights + high_weights - 1 
-    return weights
 
 def evaluate_trigonometric_basis(theta, degree):
     out = [np.ones(theta.shape[0])]
@@ -23,6 +17,11 @@ def resample_per_sector(theta, num_sectors, num_samples_per_sector):
         sector_mask = (theta >= theta_min)*(theta < theta_max)
         # Resample sector indices
         sector_indices = np.nonzero(sector_mask)[0]
+        if len(sector_indices) == 0:
+            raise ValueError(
+                f"Sector {sector_idx+1}/{num_sectors} ({np.rad2deg(theta_min):.0f}-{np.rad2deg(theta_max):.0f} deg) "
+                "holds no sample to fit the brightness on. Widen the gap between the clipping thresholds, "
+                "or reduce the extra radius excluded around the moon.")
         quotient, remainder = np.divmod(num_samples_per_sector, len(sector_indices))
         resampled_indices = np.concatenate([np.tile(sector_indices, quotient), np.random.choice(sector_indices, size=remainder, replace=False)])
         resampled_indices_per_sector[sector_idx] = resampled_indices
@@ -46,13 +45,18 @@ def linear_trigo_fit(x, theta, y, degree):
 
     return offset_trigo_coeffs, slope_trigo_coeffs
 
-def fast_evaluate_trigonometric_basis(theta, degree, N=10000):
-    # evaluate on uniformly spaced samples and use nearest interpolation
-    linspace_theta = np.linspace(0, 2*np.pi, N)
-    linspace_trigo_basis = evaluate_trigonometric_basis(linspace_theta, degree)
-    f = interpolate.interp1d(linspace_theta, linspace_trigo_basis, kind='nearest', axis=0)
-    trigo_basis = f(theta)
-    return trigo_basis
+def evaluate_trigonometric_polynomial(theta, coeffs, degree, num_samples=10000):
+    """
+    Evaluate a trigonometric polynomial at arbitrary angles, using a LUT for better performance.
+
+    The polynomial is collapsed against ``coeffs`` on a uniform grid of ``num_samples`` angles and
+    the curve is then indexed, rather than evaluating the basis at every angle.
+
+    Returns an array shaped like ``theta``.
+    """
+    grid = np.linspace(0, 2*np.pi, num_samples)
+    curve = evaluate_trigonometric_basis(grid, degree) @ coeffs
+    return curve[np.rint(theta * ((num_samples - 1) / (2*np.pi))).astype(np.int32)]
 
 def equalize_brightness(img_x, img_theta, img_y, mask, degree=4, num_sectors=30, num_samples_per_sector=400, return_coeffs=False):
     valid_x = img_x.mean(axis=2)[mask]
@@ -70,30 +74,10 @@ def equalize_brightness(img_x, img_theta, img_y, mask, degree=4, num_sectors=30,
                                                                 degree)
 
 
-    #trigo_basis = evaluate_trigonometric_basis(img_theta.reshape(-1), degree) # really slow
-    trigo_basis = fast_evaluate_trigonometric_basis(img_theta.reshape(-1), degree) # twice faster with default params
-
-    img_offset = (trigo_basis @ offset_trigo_coeffs).reshape(img_theta.shape)
-    img_slope = (trigo_basis @ slope_trigo_coeffs).reshape(img_theta.shape)
+    img_offset = evaluate_trigonometric_polynomial(img_theta, offset_trigo_coeffs, degree)
+    img_slope = evaluate_trigonometric_polynomial(img_theta, slope_trigo_coeffs, degree)
     img_fitted_x = img_offset[:,:,None] + img_slope[:,:,None]*img_x
-    print(img_slope.mean())
     if return_coeffs:
         return img_fitted_x, img_offset, img_slope 
     else:
         return img_fitted_x
-    
-def compute_scaling_factor(header, keywords):
-    # All keyword values must be linearly increasing w.r.t irradiance
-    # This covers EXPTIME and ISOSPEED/GAIN. Not F-ratio (which could be manually embedded in the FITS header in a later version if necessary)
-    return np.prod(np.array([header[keyword] for keyword in keywords]))
-    
-# if __name__ == "__main__":
-#     x = np.linspace(0, 0.25, 1000)
-#     LOW_CLIPPING_THRESHOLD = 0.005
-#     LOW_SMOOTHNESS = 0.001
-#     HIGH_CLIPPING_THRESHOLD = 0.1 # if exptimes[i+1]/exptimes[i] = k, then we should have HIGH/LOW << k
-#     HIGH_SMOOTHNESS = 0.01
-#     w = saturation_weighting(x, LOW_CLIPPING_THRESHOLD, HIGH_CLIPPING_THRESHOLD, LOW_SMOOTHNESS, HIGH_SMOOTHNESS)
-#     from matplotlib import pyplot as plt 
-#     plt.plot(x, w)
-#     plt.show()

@@ -8,6 +8,7 @@ _shared:
   - &moon_registered_dir 'path/to/moon_registered'
   - &sun_registered_dir 'path/to/sun_registered'
   - &stacks_dir 'path/to/stacks'
+  - &hdr_dir 'path/to/hdr'
   - &group_keywords ["EXPTIME"]
   - &image_scale 1.00
 
@@ -44,3 +45,14 @@ integration:
   rejection_extra_radius: 2
   rejection_smoothness: 10.0
   blend_smoothness: 3.0
+
+hdr:
+  stacks_dir: *stacks_dir
+  hdr_dir: *hdr_dir
+  group_keywords: *group_keywords
+  low_clipping_threshold: 0.005
+  low_smoothness: 0.001
+  high_clipping_threshold: 0.1 # if exptimes[i]/exptimes[i+1] = k, then high/low must exceed k, comfortably
+  high_smoothness: 0.01
+  fit_extra_radius: 10
+  save_weights: false

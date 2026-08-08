@@ -57,20 +57,40 @@ When stacking the sun-registered images, the moon pixels are rejected to avoid "
 The merge takes the moon-registered image inside the moon's disk and the sun-registered one outside it, with a transition annulus straddling the limb where the darker of the two is kept :
 - `blend_smoothness` : half-width of that annulus in pixels, i.e. how far the transition reaches on each side of the limb. It only needs to cover the fact that the limb is not a perfectly sharp disk (blur, lunar relief, residual registration error), so a few pixels is enough : a large value blurs lunar detail outwards and the inner corona inwards.
 
-<!--
-Outdated: `sun_hdr_composition.py` and `moon_hdr_composition.py` are no longer runnable, pending a rewrite onto the merged stacks produced by `integration.py`.
-
 ## HDR composition
 
-The scripts `sun_hdr_composition.py` and `moon_hdr_composition.py` combine the previously generated stacks located in `moon_stacks_dir` and `sun_stacks_dir`. The output directories are defined by `moon_hdr_dir` and `sun_hdr_dir`.
+The script `hdr.py` combines the stacks produced by `integration.py`, located in `stacks_dir`, into a single high-dynamic-range image `hdr.fits` written to `hdr_dir`. It expects one stack per group, so the same `group_keywords` must be used as during integration.
+
+Each stack only sees part of the corona : the longest exposure saturates over the inner corona, while the shortest one drowns the outer corona in noise. Walking from the longest exposure to the shortest, every stack is fitted onto the brightness scale of the previous one and added to a weighted average, so that each pixel is drawn from the exposures that actually recorded it within their usable range.
+
+The chain has to run from the longest exposure to the shortest, but the stacks are sorted by the raw value of the grouping keywords, which only tracks brightness when the keyword is an exposure setting. Rather than assume it, each stack is compared against the previous one as it is read, and the script stops if it turns out not to be the fainter of the two.
+
+### Clipping thresholds
 
 Because they are stored in 16-bit files, the pixel values of an image taken with a 14-bit sensor typically saturate at 0.25 (in the normalized [0,1] range), but this value can even be lower based on the full well capacity (FWC) of the sensor. Even then, the sensor might not be linear near the saturation point : values above ~80-90% of the saturation point are often not representative of the true brightness. Similarly, values that are near 0 suffer from the same issues. In order to create a smooth and realistic HDR composite, those too-bright and too-dark values should be rejected by the HDR algorithm. However, those thresholds uniquely depend on the imaging system, and should be derived from the images themselves. Be careful: image calibration (bias subtraction and flat division) has a non-uniform effect on those thresholds : some pixels might saturate at a lower/higher point than others for example. It is usually best to reject more pixels than necessary (as opposed to not enough).
 
-In essence, the HDR algorithm performs a weighted combination, where the pixels that are too bright (or too dark) are rejected based on a weighting function defined by 4 parameters :
-- `high_clipping_threshold`, `high_clipping_smoothness` : values in [0,1]. The weight function is equal to 1 for pixel values below `high_clipping_threshold`, and equal to 0 above `high_clipping_threshold`+`high_clipping_smoothness`. Between the two, it is a simple linear interpolation. 
-- `low_clipping_threshold`, `low_clipping_smoothness` : analogous to `high_clipping_threshold` and `high_clipping_smoothness`.
+A pixel counts as usable only if <b>every</b> colour channel is in range : the dimmest channel above the low threshold, and the brightest one below the high threshold. The weighting function is defined by 4 parameters :
+- `high_clipping_threshold`, `high_smoothness` : values in [0,1]. The weight function is equal to 1 for pixel values below `high_clipping_threshold`, and equal to 0 above `high_clipping_threshold`+`high_smoothness`. Between the two, it is a simple linear interpolation.
+- `low_clipping_threshold`, `low_smoothness` : analogous to `high_clipping_threshold` and `high_smoothness`.
 
-Moreover, `sun_hdr_composition.py` uses a fitting routine before combining the images. The fit is computed on a region of appropriate brightness (as defined by `high_clipping_threshold` and `low_clipping_threshold`), which also excludes the moon. The script uses an additional parameter for the moon mask :
-- `extra_radius_pixels` : extra amount of pixels added to the radius of the moon mask.
--->
+The two ends of the ladder are treated as special cases : the longest exposure keeps its dark pixels and the shortest one keeps its bright pixels, since in each case no other stack measures that part of the corona.
+
+Consecutive exposures must overlap in usable range, otherwise there is nothing to fit them against. A pixel worth `v` in one exposure is worth `v/k` in the next one down, where `k` is the ratio between the two exposure times, so it is usable in both only when `k`·`low_clipping_threshold` <= `v` <= `high_clipping_threshold`. That band exists at all only when
+
+    high_clipping_threshold / low_clipping_threshold >= k
+
+and it needs to be comfortably wider than that to fit on, since the margin between the two ratios is what sets how much of the corona the fit gets to see. When the ladder has a gap, the script stops and says so instead of producing a discontinuous composite.
+
+### Brightness equalization
+
+Before being combined, each stack is fitted onto the brightness scale of the previous one, through an affine map whose offset and slope both vary with the angle around the moon. The fit absorbs the exposure ratio itself, along with the transparency and sky gradient differences that a nominal exposure ratio cannot describe. It is computed on the pixels that are usable in both stacks, excluding the moon :
+- `fit_extra_radius` : extra amount of pixels added to the radius of the moon mask. The pixels just outside the limb are unrepresentative of the corona (blur, lunar relief, residual registration error, leaked corona), so they are excluded from the fit.
+
+### Weighting and output
+
+Each stack contributes in proportion to its exposure time, which is the inverse-variance weighting of a photon-noise-limited signal once every stack has been brought onto a common brightness scale. Exposure time alone, and not the exposure-gain product : raising the gain amplifies signal and noise together and buys no photons. When a stack records no exposure time (neither `EXPTIME` nor `EXPOSURE`), all stacks are weighted equally instead and a warning is printed.
+
+Fitting onto the longest exposure's scale pushes the inner corona well past 1, so the composite is rescaled to [0,1] before being written. The divisor is recorded in the `HDRSCALE` header keyword : multiply by it to recover the values on the longest exposure's scale.
+
+- `save_weights` : when true, the weight map of each group is also written to `hdr_dir`. Useful to tune the four clipping parameters, since it shows exactly which pixels each exposure contributed.
 
