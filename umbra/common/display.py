@@ -1,5 +1,4 @@
 import numpy as np
-import bottleneck as bn
 from astropy.io import fits
 from umbra.common.pyx.lut import apply_lut_rgb, apply_lut_grayscale
 
@@ -9,26 +8,28 @@ def combine_red_green(img1, img2):
     img[:,:,1] = img2 
     return img
 
-def compute_statistics(x, has_nans: bool = False):
-    '''Returns a dictionary containing median, MAD, and max values of x.'''
-    if has_nans:
-        median = bn.nanmedian(x)
-        mad = bn.nanmedian(np.abs(x - median)) * 1.4826
-        maximum = bn.nanmax(x)
-    else:
-        median = np.median(x)
-        mad = np.median(np.abs(x - median)) * 1.4826
-        maximum = x.max()
-    return {"median": median, "MAD": mad, "max": maximum}
+# Percentage of the pixels left below the black point, which is where the noise floor is
+# taken to be.
+NOISE_FLOOR_QUANTILE = 0.2
+# Quantiles converge long before every pixel is needed, and this is the whole cost of
+# compute_statistics, so the image is sampled rather than read in full.
+ROW_SUBSAMPLING = 4
 
-def auto_ht_params(statistics, clip_from_median=-2.8, target_median=0.25):       
-    vmax = statistics["max"]
-    vmin = statistics["median"] + clip_from_median*statistics["MAD"]
-    # Update median
-    median = (statistics["median"] - vmin)/(vmax - vmin)
-    # Compute the midpoint that yields a specified target median value
-    m = mtf(median, target_median) # this might look weird but you can prove that it works
-    return m, vmin, vmax
+def compute_statistics(x, has_nans: bool = False):
+    '''Returns the noise floor of x, and its maximum.'''
+    rows = x[::ROW_SUBSAMPLING]
+    count = rows.size - np.isnan(rows).sum() if has_nans else rows.size
+    # Pixels at or below zero already display as black, so the quantile is taken among the
+    # rest; otherwise a padded border would absorb it and pin the noise floor at zero.
+    zeros = np.count_nonzero(rows <= 0)
+    level = (zeros + NOISE_FLOOR_QUANTILE/100*(count - zeros - 1))/(count - 1)
+    quantile = np.nanquantile if has_nans else np.quantile
+    return {"noise_floor": quantile(rows, level),
+            "max": np.nanmax(x) if has_nans else x.max()}
+
+def auto_ht_params(statistics, shadow_gain: float = 10):
+    '''shadow_gain is the slope of the MTF at 0, and the midpoint is exactly its reciprocal.'''
+    return 1/(1 + shadow_gain), statistics["noise_floor"], statistics["max"]
 
 def ht(x, m, vmin=None, vmax=None):
     if vmin is None:
