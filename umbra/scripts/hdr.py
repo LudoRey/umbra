@@ -62,9 +62,7 @@ def main(
     exposure_times = io.read_exposure_times(headers, filepaths)
 
     center = np.array([geometry["MOON-X"], geometry["MOON-Y"]])
-    # Padded past the limb: everything the moon swept over during totality, plus the registration
-    # residuals, lunar relief and leaked corona that make the pixels just outside it
-    # unrepresentative of the corona the fit is meant to describe.
+    # Padded past the limb: everything the moon swept over during totality
     moon_radius = equalization.MOON_RADIUS_FACTOR * cast(float, geometry["MOON-R"])
     moon_mask = binary_disk(center, moon_radius, coords.Region.from_shape(shape))
     img_theta = angle_map(center[0], center[1], shape=shape[:2])

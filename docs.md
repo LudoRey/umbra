@@ -87,7 +87,7 @@ Before being combined, each stack is fitted onto the brightness scale of the pre
 
 ### Weighting and output
 
-Each stack contributes in proportion to its exposure time, which is the inverse-variance weighting of a photon-noise-limited signal once every stack has been brought onto a common brightness scale. Exposure time alone, and not the exposure-gain product : raising the gain amplifies signal and noise together and buys no photons. When a stack records no exposure time (neither `EXPTIME` nor `EXPOSURE`), all stacks are weighted equally instead and a warning is printed.
+Each stack contributes in proportion to its exposure time, which is the inverse-variance weighting of a photon-noise-limited signal once every stack has been brought onto a common brightness scale. When a stack records no exposure time (neither `EXPTIME` nor `EXPOSURE`), all stacks are weighted equally instead and a warning is printed.
 
 Fitting onto the longest exposure's scale pushes the inner corona well past 1, so the composite is rescaled to [0,1] before being written.
 
