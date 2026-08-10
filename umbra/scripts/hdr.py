@@ -2,7 +2,6 @@ import os
 from collections.abc import Sequence
 from typing import cast
 
-import astropy.io.fits
 import numpy as np
 
 from umbra.common import context, coords, fits, imageio
@@ -138,13 +137,11 @@ def main(
     hdr_img /= sum_weights[:, :, None]
 
     # Fitting onto the longest exposure's scale pushes the inner corona well past 1, so the
-    # composite is rescaled to [0,1] and the divisor recorded: multiply by it to undo.
+    # composite is rescaled to [0,1]
     divisor = float(hdr_img.max())
     hdr_img /= divisor
 
-    output_header = fits.update(
-        fits.combine([fits.intersect(headers), geometry]),
-        [astropy.io.fits.Card("HDRSCALE", divisor, "Multiply by this to undo normalization.")])
+    output_header = fits.combine([fits.intersect(headers), geometry])
     imageio.write(os.path.join(hdr_dir, "hdr.fits"), hdr_img, output_header)
     context.emit_image(hdr_img)
     cprint("HDR composition completed successfully.", style="bold", color="green")
