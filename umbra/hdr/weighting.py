@@ -12,7 +12,7 @@ def in_range(img: np.ndarray, low: float, high: float) -> np.ndarray:
     return (img.min(axis=2) > low) & (img.max(axis=2) < high)
 
 
-def saturation_weighting(img: np.ndarray, low: float, high: float, low_smoothness: float, high_smoothness: float) -> np.ndarray:
+def saturation_weighting(img: np.ndarray, low: float, low_smoothness: float, high: float, high_smoothness: float) -> np.ndarray:
     """
     Smooth counterpart of :func:`in_range`, feathering both bounds inwards instead of cutting them.
 

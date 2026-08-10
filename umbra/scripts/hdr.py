@@ -70,37 +70,25 @@ def main(
     moon_mask = binary_disk(center, moon_radius, coords.Region.from_shape(shape))
     img_theta = angle_map(center[0], center[1], shape=shape[:2])
 
-    # The longest exposure anchors the brightness scale every other stack is fitted onto. Its own
-    # dark pixels are the only measurement of the outer corona, so it keeps them: no low cut.
-    cprint(f"Reading the reference stack {filepaths[0].name}:", style="bold", color="cyan")
-    img_y, _ = imageio.read(filepaths[0])
-    previous_mean = float(img_y.mean())
-
-    # The longest exposure saturates over the inner corona, so its maximum is the level at which
-    # this imaging system clips. The four clipping parameters are fractions of it and become pixel
-    # values here: that level depends on the sensor's full well and on what calibration did to it,
-    # and is not knowable from the settings alone.
-    saturation = float(img_y.max())
-    low_threshold, high_threshold = low_threshold * saturation, high_threshold * saturation
-    low_smoothness, high_smoothness = low_smoothness * saturation, high_smoothness * saturation
-    cprint(f"Detected saturation value at {saturation:.5f}.")
-    cprint(f"Only pixels between {low_threshold:.5f} and {high_threshold:.5f} will be kept.")
-
-    valid_y = weighting.in_range(img_y, low_threshold, high_threshold)
-    weights = weighting.saturation_weighting(img_y, 0, high_threshold, 0, high_smoothness)
-    if save_weights:
-        group_name = fits.format_group_name(group_values_list[0], group_keywords)
-        imageio.write(os.path.join(hdr_dir, f"weights_{group_name}.fits"), weights, None)
-    weights = weights * exposure_times[0]
-
-    hdr_img = weights[:, :, None] * img_y
-    sum_weights = weights.copy()
-    context.emit_image(weighting.running_composite(hdr_img, sum_weights))
-
-    num_remaining = len(filepaths) - 1
-    for index, filepath in enumerate(filepaths[1:], start=1):
-        cprint(f"Compositing {filepath.name} ({index}/{num_remaining}):", style="bold", color="cyan")
+    num_stacks = len(filepaths)
+    hdr_img = np.zeros(shape, dtype=np.float32)
+    sum_weights = np.zeros(shape[:2], dtype=np.float32)
+    previous_mean = np.inf
+    img_y, valid_y = None, None
+    for index, filepath in enumerate(filepaths):
+        cprint(f"Compositing {filepath.name} ({index + 1}/{num_stacks}):", style="bold", color="cyan")
         img_x, _ = imageio.read(filepath)
+
+        if index == 0:
+            # The longest exposure saturates over the inner corona, so its maximum is the level at
+            # which this imaging system clips. The four clipping parameters are fractions of it and
+            # become pixel values here: that level depends on the sensor's full well and on what
+            # calibration did to it, and is not knowable from the settings alone.
+            saturation = float(img_x.max())
+            low_threshold, high_threshold = low_threshold * saturation, high_threshold * saturation
+            low_smoothness, high_smoothness = low_smoothness * saturation, high_smoothness * saturation
+            cprint(f"Detected saturation value at {saturation:.5f}.")
+            cprint(f"Only pixels between {low_threshold:.5f} and {high_threshold:.5f} will be kept.")
 
         # The groups were sorted by keyword value, never by measured brightness. Check the two agree
         # before fitting this stack onto a scale that could not represent it.
@@ -113,27 +101,30 @@ def main(
         previous_mean = current_mean
 
         valid_x = weighting.in_range(img_x, low_threshold, high_threshold)
-        # The shortest exposure is the only measurement of the inner corona, so it keeps its bright
-        # pixels; every other stack is superseded there by a shorter one. Dropping the bound outright
-        # is safe on the last pass, but only below the fit mask, which still rejects saturated pixels.
-        if index == num_remaining:
-            high_threshold, high_smoothness = 1.0, 0.0
-        weights = weighting.saturation_weighting(img_x, low_threshold, high_threshold, low_smoothness, high_smoothness)
+        # Each end of the ladder keeps the pixels no other stack measures: the longest exposure its
+        # dark ones, the shortest its bright ones. The fit mask above still rejects both, since a
+        # pixel the sensor did not record faithfully says nothing about the brightness scale.
+        low = (0.0, 0.0) if index == 0 else (low_threshold, low_smoothness)
+        high = (1.0, 0.0) if index == num_stacks - 1 else (high_threshold, high_smoothness)
+        weights = weighting.saturation_weighting(img_x, *low, *high)
         if save_weights:
             group_name = fits.format_group_name(group_values_list[index], group_keywords)
             imageio.write(os.path.join(hdr_dir, f"weights_{group_name}.fits"), weights, None)
         weights = weights * exposure_times[index]
         context.checkstate()
 
-        cprint("Equalizing the brightness against the previous stack...", color="cyan", flush=True)
-        img_x = equalization.equalize_brightness(img_x, img_theta, img_y, valid_x & valid_y & ~moon_mask)
-        cprint("Brightness equalized.", color="green")
-        context.checkstate()
+        # The longest exposure anchors the brightness scale, so there is nothing to fit it onto.
+        if index > 0:
+            assert img_y is not None and valid_y is not None
+            cprint("Equalizing the brightness against the previous stack...", flush=True)
+            img_x = equalization.equalize_brightness(img_x, img_theta, img_y, valid_x & valid_y & ~moon_mask)
+            cprint("Brightness equalized.")
+            context.checkstate()
 
         hdr_img += weights[:, :, None] * img_x
         sum_weights += weights
         context.emit_image(weighting.running_composite(hdr_img, sum_weights))
-        cprint(f"Composited {filepath.name} ({index}/{num_remaining}).", color="green")
+        cprint(f"Composited {filepath.name} ({index + 1}/{num_stacks}).", color="green")
 
         # The equalized stack carries the reference scale forward: it is what the next one is fitted onto.
         img_y, valid_y = img_x, valid_x
