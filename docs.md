@@ -83,8 +83,7 @@ and it needs to be comfortably wider than that to fit on, since the margin betwe
 
 ### Brightness equalization
 
-Before being combined, each stack is fitted onto the brightness scale of the previous one, through an affine map whose offset and slope both vary with the angle around the moon. The fit absorbs the exposure ratio itself, along with the transparency and sky gradient differences that a nominal exposure ratio cannot describe. It is computed on the pixels that are usable in both stacks, excluding the moon :
-- `fit_extra_radius` : extra amount of pixels added to the radius of the moon mask. The pixels just outside the limb are unrepresentative of the corona (blur, lunar relief, residual registration error, leaked corona), so they are excluded from the fit.
+Before being combined, each stack is fitted onto the brightness scale of the previous one, through an affine map whose offset and slope both vary with the angle around the moon. The fit absorbs the exposure ratio itself, along with the transparency and sky gradient differences that a nominal exposure ratio cannot describe. It is computed on the pixels that are usable in both stacks, excluding the moon.
 
 ### Weighting and output
 

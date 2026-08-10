@@ -1,6 +1,11 @@
 """Fitting one stack onto the brightness scale of another, as a function of the angle around the moon."""
 import numpy as np
 
+# The corona of the merged stacks comes from the sun-registered images, in which the moon drifts
+# over totality. Inflating its radius by this much makes a disk centred on the moon at one moment
+# cover it at every other, so the fit never sees a pixel the moon passed over.
+MOON_RADIUS_FACTOR = 1.15
+
 def evaluate_trigonometric_basis(theta, degree):
     out = [np.ones(theta.shape[0])]
     for n in range(1, degree+1):

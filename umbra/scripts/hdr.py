@@ -22,8 +22,6 @@ def main(
     low_smoothness: float,
     high_clipping_threshold: float,
     high_smoothness: float,
-    # Brightness equalization
-    fit_extra_radius: float,
     # Diagnostics
     save_weights: bool,
 ) -> None:
@@ -62,9 +60,11 @@ def main(
     exposure_times = io.read_exposure_times(headers, filepaths)
 
     center = np.array([geometry["MOON-X"], geometry["MOON-Y"]])
-    # Padded past the limb: registration residuals, lunar relief and leaked corona all make the
-    # pixels just outside the moon unrepresentative of the corona the fit is meant to describe.
-    moon_mask = binary_disk(center, cast(float, geometry["MOON-R"]) + fit_extra_radius, coords.Region.from_shape(shape))
+    # Padded past the limb: everything the moon swept over during totality, plus the registration
+    # residuals, lunar relief and leaked corona that make the pixels just outside it
+    # unrepresentative of the corona the fit is meant to describe.
+    moon_radius = equalization.MOON_RADIUS_FACTOR * cast(float, geometry["MOON-R"])
+    moon_mask = binary_disk(center, moon_radius, coords.Region.from_shape(shape))
     img_theta = angle_map(center[0], center[1], shape=shape[:2])
 
     # The longest exposure anchors the brightness scale every other stack is fitted onto. Its own

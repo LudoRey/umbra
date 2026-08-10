@@ -54,5 +54,4 @@ hdr:
   low_smoothness: 0.001
   high_clipping_threshold: 0.1 # if exptimes[i]/exptimes[i+1] = k, then high/low must exceed k, comfortably
   high_smoothness: 0.01
-  fit_extra_radius: 10
   save_weights: false
