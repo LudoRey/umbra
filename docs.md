@@ -72,10 +72,10 @@ A sensor only records brightness faithfully over part of its range : it clips at
 Where that clipping level sits depends on the imaging system, and calibration (bias subtraction, flat division) shifts it further, by a different amount for every pixel. It is therefore measured rather than configured : the longest exposure saturates over the inner corona, so the brightest value it holds is the level at which the system clips. The four parameters below are <b>fractions of that measured level</b>, not absolute pixel values, so the same configuration transfers between cameras and between calibration setups.
 
 A pixel counts as usable only if <b>every</b> colour channel is in range : the dimmest channel above the low threshold, and the brightest one below the high threshold. The weighting function is defined by 4 parameters :
-- `high_threshold`, `high_smoothness` : fractions of the measured saturation level. The weight function is equal to 1 for pixel values below `high_threshold`, and equal to 0 above `high_threshold`+`high_smoothness`. Between the two, it is a simple linear interpolation.
+- `high_threshold`, `high_smoothness` : fractions of the measured saturation level. The weight function is equal to 0 for pixel values above `high_threshold`, and equal to 1 below `high_threshold`-`high_smoothness`. Between the two, it is a simple linear interpolation.
 - `low_threshold`, `low_smoothness` : analogous to `high_threshold` and `high_smoothness`.
 
-The two ends of the ladder are treated as special cases : the longest exposure keeps its dark pixels and the shortest one keeps its bright pixels, since in each case no other stack measures that part of the corona.
+The longest and the shortest exposure are treated as special cases : the longest one keeps its dark pixels and the shortest one keeps its bright pixels, since in each case no other stack measures that part of the corona.
 
 Consecutive exposures must overlap in usable range, otherwise there is nothing to fit them against. How far apart they may be is set by the range the thresholds cover, log2(`high_threshold`/`low_threshold`) : the default 0.025 and 0.8 cover <b>5 stops</b>, so exposures more than 5 stops apart share no usable pixel at all, and <b>3 stops or less is strongly recommended</b>. Widen the range when consecutive exposures do not overlap enough, and tighten it when non-linearity shows through in the composite, as a ring at the handover radius between two exposures.
 

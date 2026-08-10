@@ -87,7 +87,7 @@ def main(
     cprint(f"Only pixels between {low_threshold:.5f} and {high_threshold:.5f} will be kept.")
 
     valid_y = weighting.in_range(img_y, low_threshold, high_threshold)
-    weights = weighting.saturation_weighting(img_y, 0, high_threshold, low_smoothness, high_smoothness)
+    weights = weighting.saturation_weighting(img_y, 0, high_threshold, 0, high_smoothness)
     if save_weights:
         group_name = fits.format_group_name(group_values_list[0], group_keywords)
         imageio.write(os.path.join(hdr_dir, f"weights_{group_name}.fits"), weights, None)
@@ -113,10 +113,12 @@ def main(
         previous_mean = current_mean
 
         valid_x = weighting.in_range(img_x, low_threshold, high_threshold)
-        # The shortest exposure is the only measurement of the inner corona, so it keeps its
-        # bright pixels; every other stack is superseded there by a shorter one.
-        high = 1.0 if index == num_remaining else high_threshold
-        weights = weighting.saturation_weighting(img_x, low_threshold, high, low_smoothness, high_smoothness)
+        # The shortest exposure is the only measurement of the inner corona, so it keeps its bright
+        # pixels; every other stack is superseded there by a shorter one. Dropping the bound outright
+        # is safe on the last pass, but only below the fit mask, which still rejects saturated pixels.
+        if index == num_remaining:
+            high_threshold, high_smoothness = 1.0, 0.0
+        weights = weighting.saturation_weighting(img_x, low_threshold, high_threshold, low_smoothness, high_smoothness)
         if save_weights:
             group_name = fits.format_group_name(group_values_list[index], group_keywords)
             imageio.write(os.path.join(hdr_dir, f"weights_{group_name}.fits"), weights, None)

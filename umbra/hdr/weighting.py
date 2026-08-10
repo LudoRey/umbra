@@ -14,15 +14,23 @@ def in_range(img: np.ndarray, low: float, high: float) -> np.ndarray:
 
 def saturation_weighting(img: np.ndarray, low: float, high: float, low_smoothness: float, high_smoothness: float) -> np.ndarray:
     """
-    Smooth counterpart of :func:`in_range`, feathering both bounds instead of cutting them.
+    Smooth counterpart of :func:`in_range`, feathering both bounds inwards instead of cutting them.
 
-    The weight reaches 1 over ``[low, high]`` and falls linearly to 0 over the
-    ``low_smoothness`` below ``low`` and the ``high_smoothness`` above ``high``. The two
-    bounds are combined multiplicatively, so a pixel violating either one weighs nothing.
+    Nothing outside ``[low, high]`` weighs anything: the bounds are hard limits, and the two
+    smoothnesses only say how far inside them the weight takes to reach 1. A smoothness of 0
+    turns its bound into a step, which is how a bound that should not bite is expressed. The
+    two bounds are combined multiplicatively, so a pixel violating either one weighs nothing.
     """
-    low_weights = np.clip((img.min(axis=2) + low_smoothness - low) / low_smoothness, 0, 1)
-    high_weights = np.clip((- img.max(axis=2) + high_smoothness + high) / high_smoothness, 0, 1)
+    low_weights = _ramp(img.min(axis=2) - low, low_smoothness)
+    high_weights = _ramp(high - img.max(axis=2), high_smoothness)
     return low_weights * high_weights
+
+
+def _ramp(depth: np.ndarray, smoothness: float) -> np.ndarray:
+    """Weight of a pixel lying ``depth`` inside a bound: 0 outside it, 1 once ``smoothness`` past it."""
+    if smoothness == 0:
+        return (depth >= 0).astype(depth.dtype)
+    return np.clip(depth / smoothness, 0, 1)
 
 
 def running_composite(hdr_img: np.ndarray, sum_weights: np.ndarray) -> np.ndarray:
