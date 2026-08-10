@@ -67,19 +67,19 @@ The chain has to run from the longest exposure to the shortest, but the stacks a
 
 ### Clipping thresholds
 
-Because they are stored in 16-bit files, the pixel values of an image taken with a 14-bit sensor typically saturate at 0.25 (in the normalized [0,1] range), but this value can even be lower based on the full well capacity (FWC) of the sensor. Even then, the sensor might not be linear near the saturation point : values above ~80-90% of the saturation point are often not representative of the true brightness. Similarly, values that are near 0 suffer from the same issues. In order to create a smooth and realistic HDR composite, those too-bright and too-dark values should be rejected by the HDR algorithm. However, those thresholds uniquely depend on the imaging system, and should be derived from the images themselves. Be careful: image calibration (bias subtraction and flat division) has a non-uniform effect on those thresholds : some pixels might saturate at a lower/higher point than others for example. It is usually best to reject more pixels than necessary (as opposed to not enough).
+A sensor only records brightness faithfully over part of its range : it clips at the top and drowns in noise at the bottom. Neither end fails abruptly, since values above ~80-90% of the clipping level are already compressed and values near 0 are already noise-dominated, so both have to be rejected with some margin for the composite to come out smooth and realistic.
+
+Where that clipping level sits depends on the imaging system, and calibration (bias subtraction, flat division) shifts it further, by a different amount for every pixel. It is therefore measured rather than configured : the longest exposure saturates over the inner corona, so the brightest value it holds is the level at which the system clips. The four parameters below are <b>fractions of that measured level</b>, not absolute pixel values, so the same configuration transfers between cameras and between calibration setups.
 
 A pixel counts as usable only if <b>every</b> colour channel is in range : the dimmest channel above the low threshold, and the brightest one below the high threshold. The weighting function is defined by 4 parameters :
-- `high_clipping_threshold`, `high_smoothness` : values in [0,1]. The weight function is equal to 1 for pixel values below `high_clipping_threshold`, and equal to 0 above `high_clipping_threshold`+`high_smoothness`. Between the two, it is a simple linear interpolation.
-- `low_clipping_threshold`, `low_smoothness` : analogous to `high_clipping_threshold` and `high_smoothness`.
+- `high_threshold`, `high_smoothness` : fractions of the measured saturation level. The weight function is equal to 1 for pixel values below `high_threshold`, and equal to 0 above `high_threshold`+`high_smoothness`. Between the two, it is a simple linear interpolation.
+- `low_threshold`, `low_smoothness` : analogous to `high_threshold` and `high_smoothness`.
 
 The two ends of the ladder are treated as special cases : the longest exposure keeps its dark pixels and the shortest one keeps its bright pixels, since in each case no other stack measures that part of the corona.
 
-Consecutive exposures must overlap in usable range, otherwise there is nothing to fit them against. A pixel worth `v` in one exposure is worth `v/k` in the next one down, where `k` is the ratio between the two exposure times, so it is usable in both only when `k`·`low_clipping_threshold` <= `v` <= `high_clipping_threshold`. That band exists at all only when
+Consecutive exposures must overlap in usable range, otherwise there is nothing to fit them against. How far apart they may be is set by the range the thresholds cover, log2(`high_threshold`/`low_threshold`) : the default 0.025 and 0.8 cover <b>5 stops</b>, so exposures more than 5 stops apart share no usable pixel at all, and <b>3 stops or less is strongly recommended</b>. Widen the range when consecutive exposures do not overlap enough, and tighten it when non-linearity shows through in the composite, as a ring at the handover radius between two exposures.
 
-    high_clipping_threshold / low_clipping_threshold >= k
-
-and it needs to be comfortably wider than that to fit on, since the margin between the two ratios is what sets how much of the corona the fit gets to see. When the ladder has a gap, the script stops and says so instead of producing a discontinuous composite.
+All of the above assumes the images carry no offset : a pixel that recorded nothing reads 0, which is what Umbra's own calibration produces once the bias is subtracted. A leftover pedestal lifts every pixel by the same amount while the thresholds keep counting from zero, so both have to be <b>raised</b>. It matters most for `low_threshold` : left alone, a pixel holding nothing but the pedestal clears the low cut and is weighted as though it had recorded something.
 
 ### Brightness equalization
 

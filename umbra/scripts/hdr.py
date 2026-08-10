@@ -18,9 +18,9 @@ def main(
     hdr_dir: str,
     group_keywords: Sequence[str],
     # Clipping
-    low_clipping_threshold: float,
+    low_threshold: float,
     low_smoothness: float,
-    high_clipping_threshold: float,
+    high_threshold: float,
     high_smoothness: float,
     # Diagnostics
     save_weights: bool,
@@ -38,6 +38,9 @@ def main(
     itself rather than dividing it out beforehand: an affine map whose offset and slope both
     vary with the angle around the moon, which also soaks up the transparency and sky-gradient
     differences that a nominal exposure ratio cannot describe.
+
+    The four clipping parameters are fractions of the level at which the imaging system clips,
+    measured as the maximum of the longest exposure, rather than absolute pixel values.
     """
     filepath_to_header = {p: imageio.read_header(p) for p in imageio.list_files(stacks_dir, extensions=imageio.extensions.FITS)}
     grouped_filepaths = fits.group_filepaths(filepath_to_header, group_keywords)
@@ -72,8 +75,19 @@ def main(
     cprint(f"Reading the reference stack {filepaths[0].name}:", style="bold", color="cyan")
     img_y, _ = imageio.read(filepaths[0])
     previous_mean = float(img_y.mean())
-    valid_y = weighting.in_range(img_y, low_clipping_threshold, high_clipping_threshold)
-    weights = weighting.saturation_weighting(img_y, 0, high_clipping_threshold, low_smoothness, high_smoothness)
+
+    # The longest exposure saturates over the inner corona, so its maximum is the level at which
+    # this imaging system clips. The four clipping parameters are fractions of it and become pixel
+    # values here: that level depends on the sensor's full well and on what calibration did to it,
+    # and is not knowable from the settings alone.
+    saturation = float(img_y.max())
+    low_threshold, high_threshold = low_threshold * saturation, high_threshold * saturation
+    low_smoothness, high_smoothness = low_smoothness * saturation, high_smoothness * saturation
+    cprint(f"Detected saturation value at {saturation:.5f}.")
+    cprint(f"Only pixels between {low_threshold:.5f} and {high_threshold:.5f} will be kept.")
+
+    valid_y = weighting.in_range(img_y, low_threshold, high_threshold)
+    weights = weighting.saturation_weighting(img_y, 0, high_threshold, low_smoothness, high_smoothness)
     if save_weights:
         group_name = fits.format_group_name(group_values_list[0], group_keywords)
         imageio.write(os.path.join(hdr_dir, f"weights_{group_name}.fits"), weights, None)
@@ -98,11 +112,11 @@ def main(
                 "keyword whose sort order matches irradiance, such as the exposure time.")
         previous_mean = current_mean
 
-        valid_x = weighting.in_range(img_x, low_clipping_threshold, high_clipping_threshold)
+        valid_x = weighting.in_range(img_x, low_threshold, high_threshold)
         # The shortest exposure is the only measurement of the inner corona, so it keeps its
         # bright pixels; every other stack is superseded there by a shorter one.
-        high = 1.0 if index == num_remaining else high_clipping_threshold
-        weights = weighting.saturation_weighting(img_x, low_clipping_threshold, high, low_smoothness, high_smoothness)
+        high = 1.0 if index == num_remaining else high_threshold
+        weights = weighting.saturation_weighting(img_x, low_threshold, high, low_smoothness, high_smoothness)
         if save_weights:
             group_name = fits.format_group_name(group_values_list[index], group_keywords)
             imageio.write(os.path.join(hdr_dir, f"weights_{group_name}.fits"), weights, None)
