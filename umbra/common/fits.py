@@ -4,6 +4,7 @@ from collections.abc import Callable, Sequence
 from typing import Any, cast
 
 import dateutil.parser
+import numpy as np
 import astropy.io.fits
 
 
@@ -74,6 +75,11 @@ def aggregate(headers: Sequence[Header], reducers: dict[str, Callable[[list], An
     This is meant to recover keywords that :func:`intersect` drops because they vary
     across frames -- whether from last-ULP float noise (e.g. a reference position
     recomputed per frame) or genuine per-frame differences (e.g. a detected radius).
+
+    Reducers returning numpy scalars (``np.mean`` and friends) have them unwrapped to the
+    equivalent Python scalars, which is what astropy yields for a header read from disk. A
+    numpy scalar left in place would carry its dtype into whatever arithmetic reads the
+    keyword back, silently promoting float32 images to float64.
     """
     cards = []
     for keyword, reduce in reducers.items():
@@ -81,7 +87,10 @@ def aggregate(headers: Sequence[Header], reducers: dict[str, Callable[[list], An
         if not values:
             continue
         comment = next(header.comments[keyword] for header in headers if keyword in header)
-        cards.append(astropy.io.fits.Card(keyword, reduce(values), comment))
+        value = reduce(values)
+        if isinstance(value, np.generic):
+            value = value.item()
+        cards.append(astropy.io.fits.Card(keyword, value, comment))
     return Header(cards)
 
 
