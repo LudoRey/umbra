@@ -6,6 +6,9 @@ import numpy as np
 # cover it at every other, so the fit never sees a pixel the moon passed over.
 MOON_RADIUS_FACTOR = 1.15
 
+# Sampling walks a dense (angle, radius) grid; this many angles at a time keeps it a few megabytes.
+ANGLES_PER_CHUNK = 1000
+
 def evaluate_trigonometric_basis(theta, degree):
     out = [np.ones(theta.shape[0])]
     for n in range(1, degree+1):
@@ -14,23 +17,63 @@ def evaluate_trigonometric_basis(theta, degree):
     out = np.stack(out, axis=1) 
     return out
 
-def resample_per_sector(theta, num_sectors, num_samples_per_sector):
-    resampled_indices_per_sector = np.zeros([num_sectors, num_samples_per_sector], dtype=np.uint64)
-    for sector_idx in range(num_sectors):
-        # Define sector mask
-        theta_min, theta_max = 2*np.pi*sector_idx/num_sectors, 2*np.pi*(sector_idx+1)/num_sectors
-        sector_mask = (theta >= theta_min)*(theta < theta_max)
-        # Resample sector indices
-        sector_indices = np.nonzero(sector_mask)[0]
-        if len(sector_indices) == 0:
+def sample_polar(mask, center, num_samples):
+    """
+    Sample pixels uniformly in polar coordinates around ``center``.
+
+    Each sample draws an angle uniformly over the full turn, then a radius uniformly among the
+    radii whose pixel lies inside ``mask``. Uneven illumination keeps that mask from being a
+    clean annulus -- the thresholds bite at a different radius in every direction -- so drawing
+    uniformly among its pixels would hand the most weight to the directions where it happens to
+    be widest. Drawing the angle first weighs every direction the same, whatever shape the mask
+    takes there.
+
+    Parameters
+    ----------
+    mask : ndarray of bool, shape (height, width)
+        The pixels a sample may land on.
+    center : ndarray, shape (2,)
+        Centre of the polar coordinates, as ``(x, y)``.
+    num_samples : int
+        Number of pixels to draw.
+
+    Returns
+    -------
+    rows, cols : ndarray of int, shape (num_samples,)
+        Indices of the sampled pixels. The same pixel may be drawn more than once, all the more
+        near the centre, where a single pixel covers a wide span of angles.
+
+    Raises
+    ------
+    ValueError
+        If a drawn angle has no valid pixel anywhere along its ray.
+    """
+    height, width = mask.shape
+    corners = np.array([[0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1]])
+    max_radius = np.hypot(*(corners - center).T).max()
+    radius = np.arange(int(max_radius) + 1)
+    theta = np.random.uniform(0, 2*np.pi, num_samples)
+
+    rows, cols = np.empty(num_samples, dtype=np.intp), np.empty(num_samples, dtype=np.intp)
+    for start in range(0, num_samples, ANGLES_PER_CHUNK):
+        chunk_theta = theta[start:start+ANGLES_PER_CHUNK, None]
+        x = np.rint(center[0] + radius*np.cos(chunk_theta)).astype(np.intp)
+        y = np.rint(center[1] + radius*np.sin(chunk_theta)).astype(np.intp)
+        inside = (x >= 0) & (x < width) & (y >= 0) & (y < height)
+        valid = inside & mask[np.where(inside, y, 0), np.where(inside, x, 0)]
+
+        # Picking the largest of one random key per valid radius draws one of them uniformly.
+        keys = np.where(valid, np.random.random(valid.shape), -1.0)
+        picked = keys.argmax(axis=1)
+        chunk_indices = np.arange(len(picked))
+        empty_ray = keys[chunk_indices, picked] < 0
+        if empty_ray.any():
             raise ValueError(
-                f"Sector {sector_idx+1}/{num_sectors} ({np.rad2deg(theta_min):.0f}-{np.rad2deg(theta_max):.0f} deg) "
-                "holds no sample to fit the brightness on. Widen the gap between the clipping thresholds, "
-                "or reduce the extra radius excluded around the moon.")
-        quotient, remainder = np.divmod(num_samples_per_sector, len(sector_indices))
-        resampled_indices = np.concatenate([np.tile(sector_indices, quotient), np.random.choice(sector_indices, size=remainder, replace=False)])
-        resampled_indices_per_sector[sector_idx] = resampled_indices
-    return resampled_indices_per_sector
+                f"The ray at {np.rad2deg(chunk_theta[empty_ray.argmax(), 0]):.0f} deg holds no sample to fit "
+                "the brightness on. Widen the gap between the clipping thresholds.")
+        rows[start:start+len(picked)] = y[chunk_indices, picked]
+        cols[start:start+len(picked)] = x[chunk_indices, picked]
+    return rows, cols
 
 def linear_trigo_fit(x, theta, y, degree):
     # Construct trigonometric polynomial features (example of a term : x*sin(theta))
@@ -63,26 +106,13 @@ def evaluate_trigonometric_polynomial(theta, coeffs, degree, num_samples=10000):
     curve = evaluate_trigonometric_basis(grid, degree) @ coeffs
     return curve[np.rint(theta * ((num_samples - 1) / (2*np.pi))).astype(np.int32)]
 
-def equalize_brightness(img_x, img_theta, img_y, mask, degree=4, num_sectors=30, num_samples_per_sector=400, return_coeffs=False):
-    valid_x = img_x.mean(axis=2)[mask]
-    valid_y = img_y.mean(axis=2)[mask]
-    valid_theta = img_theta[mask]
+def equalize_brightness(img_x, img_theta, img_y, mask, center, degree=4, num_samples=1000):
+    rows, cols = sample_polar(mask, center, num_samples)
+    sample_x, sample_y = img_x[rows, cols].mean(axis=1), img_y[rows, cols].mean(axis=1)
 
-    # Select fixed amount of samples per sector (so that we sample ~uniformly over theta)
-    resampled_indices_per_sector = resample_per_sector(valid_theta, num_sectors, num_samples_per_sector)
-    samples_per_sector_x, samples_per_sector_theta, samples_per_sector_y = valid_x[resampled_indices_per_sector], valid_theta[resampled_indices_per_sector], valid_y[resampled_indices_per_sector]
-
-    # Fit all sectors at once using trigonometric interactions
-    offset_trigo_coeffs, slope_trigo_coeffs = linear_trigo_fit(samples_per_sector_x.reshape(-1), 
-                                                                samples_per_sector_theta.reshape(-1), 
-                                                                samples_per_sector_y.reshape(-1), 
-                                                                degree)
-
+    # Fit every angle at once using trigonometric interactions
+    offset_trigo_coeffs, slope_trigo_coeffs = linear_trigo_fit(sample_x, img_theta[rows, cols], sample_y, degree)
 
     img_offset = evaluate_trigonometric_polynomial(img_theta, offset_trigo_coeffs, degree)
     img_slope = evaluate_trigonometric_polynomial(img_theta, slope_trigo_coeffs, degree)
-    img_fitted_x = img_offset[:,:,None] + img_slope[:,:,None]*img_x
-    if return_coeffs:
-        return img_fitted_x, img_offset, img_slope 
-    else:
-        return img_fitted_x
+    return img_offset[:,:,None] + img_slope[:,:,None]*img_x

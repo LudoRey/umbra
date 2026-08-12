@@ -114,7 +114,7 @@ def main(
         if index > 0:
             assert img_y is not None and valid_y is not None
             cprint("Equalizing the brightness against the previous stack...", flush=True)
-            img_x = equalization.equalize_brightness(img_x, img_theta, img_y, valid_x & valid_y & ~moon_mask)
+            img_x = equalization.equalize_brightness(img_x, img_theta, img_y, valid_x & valid_y & ~moon_mask, center)
             cprint("Brightness equalized.")
             context.checkstate()
 
