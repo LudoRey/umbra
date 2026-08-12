@@ -3,12 +3,7 @@ import numpy as np
 
 
 def in_range(img: np.ndarray, low: float, high: float) -> np.ndarray:
-    """
-    Mask of the pixels of a colour image whose every channel lies strictly within ``[low, high]``.
-
-    Each bound is tested against the channel most likely to violate it: the dimmest one for
-    the noise floor, the brightest one for saturation.
-    """
+    """Mask of the pixels of a colour image whose every channel lies strictly within ``[low, high]``."""
     return (img.min(axis=2) > low) & (img.max(axis=2) < high)
 
 
@@ -18,8 +13,7 @@ def saturation_weighting(img: np.ndarray, low: float, low_smoothness: float, hig
 
     Nothing outside ``[low, high]`` weighs anything: the bounds are hard limits, and the two
     smoothnesses only say how far inside them the weight takes to reach 1. A smoothness of 0
-    turns its bound into a step, which is how a bound that should not bite is expressed. The
-    two bounds are combined multiplicatively, so a pixel violating either one weighs nothing.
+    turns its bound into a step, which is how a bound that should not bite is expressed.
     """
     low_weights = _ramp(img.min(axis=2) - low, low_smoothness)
     high_weights = _ramp(high - img.max(axis=2), high_smoothness)

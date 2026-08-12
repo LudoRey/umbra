@@ -24,8 +24,8 @@ def single_filepaths(
     """
     The one stack of each group, in the order :func:`fits.group_filepaths` returned them.
 
-    The integration step writes exactly one stack per group, so a group holding anything else
-    means stale files are sitting next to the real ones.
+    Integration writes exactly one stack per group, so a group holding anything else means stale
+    files are sitting next to the real ones.
     """
     filepaths = []
     for group_values, group_filepaths in grouped_filepaths.items():
@@ -42,8 +42,6 @@ def read_exposure_times(headers: Sequence[astropy.io.fits.Header], filepaths: Se
     """
     Read the exposure time of each stack, falling back to equal times when any stack lacks one.
 
-    Weights are made proportional to exposure time, the inverse-variance weighting of a
-    photon-noise-limited signal once the fit has rescaled every stack onto a common brightness.
     Exposure time alone, not the exposure-gain product: raising the gain amplifies signal and
     noise together and buys no photons.
     """

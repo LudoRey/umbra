@@ -16,7 +16,7 @@ def main(
     stacks_dir: str,
     hdr_dir: str,
     group_keywords: Sequence[str],
-    # Clipping
+    # Weighting
     low_threshold: float,
     low_smoothness: float,
     high_threshold: float,
@@ -34,12 +34,9 @@ def main(
     it within their usable range.
 
     The fit (:func:`umbra.hdr.equalization.equalize_brightness`) absorbs the exposure ratio
-    itself rather than dividing it out beforehand: an affine map whose offset and slope both
-    vary with the angle around the moon, which also soaks up the transparency and sky-gradient
-    differences that a nominal exposure ratio cannot describe.
-
-    The four clipping parameters are fractions of the level at which the imaging system clips,
-    measured as the maximum of the longest exposure, rather than absolute pixel values.
+    itself, along with the illumination variations over the course of totality that a nominal
+    ratio cannot describe. The four weighting parameters are fractions of the level at which the
+    imaging system clips, measured as the maximum of the longest exposure, not absolute pixel values.
     """
     filepath_to_header = {p: imageio.read_header(p) for p in imageio.list_files(stacks_dir, extensions=imageio.extensions.FITS)}
     grouped_filepaths = fits.group_filepaths(filepath_to_header, group_keywords)
@@ -78,8 +75,7 @@ def main(
 
         if index == 0:
             # The longest exposure saturates over the inner corona, so its maximum is the level at
-            # which this imaging system clips. The four clipping parameters are fractions of it and
-            # become pixel values here: that level depends on the sensor's full well and on what
+            # which this imaging system clips -- which depends on the sensor's full well and on what
             # calibration did to it, and is not knowable from the settings alone.
             saturation = float(img_x.max())
             low_threshold, high_threshold = low_threshold * saturation, high_threshold * saturation
@@ -99,8 +95,7 @@ def main(
 
         valid_x = weighting.in_range(img_x, low_threshold, high_threshold)
         # Each end of the ladder keeps the pixels no other stack measures: the longest exposure its
-        # dark ones, the shortest its bright ones. The fit mask above still rejects both, since a
-        # pixel the sensor did not record faithfully says nothing about the brightness scale.
+        # dark ones, the shortest its bright ones. The fit mask above still rejects both.
         low = (0.0, 0.0) if index == 0 else (low_threshold, low_smoothness)
         high = (1.0, 0.0) if index == num_stacks - 1 else (high_threshold, high_smoothness)
         weights = weighting.saturation_weighting(img_x, *low, *high)
@@ -130,7 +125,7 @@ def main(
     if uncovered:
         raise ValueError(
             f"{uncovered} pixels fall outside the usable range of every stack: saturated in the longer "
-            "exposures and below the noise floor in the shorter ones. Widen the gap between the clipping "
+            "exposures and below the noise floor in the shorter ones. Widen the gap between the weighting "
             "thresholds, or shoot an intermediate exposure.")
     hdr_img /= sum_weights[:, :, None]
 
