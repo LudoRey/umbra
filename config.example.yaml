@@ -50,8 +50,8 @@ hdr:
   stacks_dir: *stacks_dir
   hdr_dir: *hdr_dir
   group_keywords: *group_keywords
-  low_threshold: 0.025
-  low_smoothness: 0.01
+  low_threshold: 0.001
+  low_smoothness: 0.001
   high_threshold: 0.8 # if exptimes[i]/exptimes[i+1] = k, then high/low must exceed k, comfortably
   high_smoothness: 0.1
   save_weights: false
