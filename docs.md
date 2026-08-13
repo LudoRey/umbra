@@ -61,11 +61,8 @@ The merge takes the moon-registered image inside the moon's disk and the sun-reg
 
 The script `hdr.py` combines the stacks produced by `integration.py`, located in `stacks_dir`, into a single high-dynamic-range image `hdr.fits` written to `hdr_dir`. It expects one stack per group, so the same `group_keywords` must be used as during integration.
 
-A sensor only records brightness faithfully over part of its range: values above ~80-90% of the saturation level are already compressed, and values near 0 are noise-dominated, so both ends have to be rejected.
-- `low_threshold`, `high_threshold` : pixels above `high_threshold` or below `low_threshold` are rejected. Those values are fractions of the saturation level, so they are independent of the sensor's full well.
+A sensor only records brightness faithfully over part of its range: values approaching the white point are already compressed, and values approaching the black point are noise-dominated, so both ends have to be rejected.
+- `low_threshold`, `high_threshold` : pixels above `high_threshold` or below `low_threshold` are rejected. Note that consecutive exposures must overlap in usable range. How far apart they may be is set by the range the thresholds cover, log2(`high_threshold`/`low_threshold`) : the default 0.025 and 0.8 cover <b>5 stops</b>, though <b>3 stops or less is strongly recommended</b>. Widen the range when consecutive exposures do not overlap enough, at the cost of potentially introducing non-linearities in the composite.
 - `low_smoothness`, `high_smoothness` : pixels are rejected smoothly with a linear ramp of width `low_smoothness` or `high_smoothness` around the thresholds. This avoids sharp transitions in the composite.
-- `save_weights` : when true, the weight map of each group is also written to `hdr_dir`.
-
-Note that consecutive exposures must overlap in usable range. How far apart they may be is set by the range the thresholds cover, log2(`high_threshold`/`low_threshold`) : the default 0.025 and 0.8 cover <b>5 stops</b>, and <b>3 stops or less is strongly recommended</b>. Widen the range when consecutive exposures do not overlap enough, at the cost of potentially introducing non-linearities in the composite.
 
 The stacks are put on a common brightness scale before they are averaged. Each one is fitted onto the next longer exposure, on the pixels both recorded within their usable range. The fit is affine and varies with the angle around the moon, so it absorbs not only the exposure ratio but the illumination variations over the course of totality.

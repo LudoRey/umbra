@@ -35,8 +35,9 @@ def main(
 
     The fit (:func:`umbra.hdr.equalization.equalize_brightness`) absorbs the exposure ratio
     itself, along with the illumination variations over the course of totality that a nominal
-    ratio cannot describe. The four weighting parameters are fractions of the level at which the
-    imaging system clips, measured as the maximum of the longest exposure, not absolute pixel values.
+    ratio cannot describe. The four weighting parameters are fractions of the range between the
+    black and white points (:func:`umbra.hdr.io.measure_black_and_white_points`), not absolute
+    pixel values.
     """
     filepath_to_header = {p: imageio.read_header(p) for p in imageio.list_files(stacks_dir, extensions=imageio.extensions.FITS)}
     grouped_filepaths = fits.group_filepaths(filepath_to_header, group_keywords)
@@ -64,6 +65,15 @@ def main(
     moon_mask = binary_disk(center, moon_radius, coords.Region.from_shape(shape))
     img_theta = angle_map(center[0], center[1], shape=shape[:2])
 
+    cprint("Measuring the black and white points:", style="bold", color="cyan")
+    black_point, white_point = io.measure_black_and_white_points(filepaths)
+    dynamic_range = white_point - black_point
+    low_threshold = black_point + low_threshold * dynamic_range
+    high_threshold = black_point + high_threshold * dynamic_range
+    low_smoothness, high_smoothness = low_smoothness * dynamic_range, high_smoothness * dynamic_range
+    cprint(f"Detected a black point at {black_point:.5f} and a white point at {white_point:.5f}.")
+    cprint(f"Only pixels between {low_threshold:.5f} and {high_threshold:.5f} will be kept.")
+
     num_stacks = len(filepaths)
     hdr_img = np.zeros(shape, dtype=np.float32)
     sum_weights = np.zeros(shape[:2], dtype=np.float32)
@@ -72,16 +82,6 @@ def main(
     for index, filepath in enumerate(filepaths):
         cprint(f"Compositing {filepath.name} ({index + 1}/{num_stacks}):", style="bold", color="cyan")
         img_x, _ = imageio.read(filepath)
-
-        if index == 0:
-            # The longest exposure saturates over the inner corona, so its maximum is the level at
-            # which this imaging system clips -- which depends on the sensor's full well and on what
-            # calibration did to it, and is not knowable from the settings alone.
-            saturation = float(img_x.max())
-            low_threshold, high_threshold = low_threshold * saturation, high_threshold * saturation
-            low_smoothness, high_smoothness = low_smoothness * saturation, high_smoothness * saturation
-            cprint(f"Detected saturation value at {saturation:.5f}.")
-            cprint(f"Only pixels between {low_threshold:.5f} and {high_threshold:.5f} will be kept.")
 
         # The groups were sorted by keyword value, never by measured brightness. Check the two agree
         # before fitting this stack onto a scale that could not represent it.

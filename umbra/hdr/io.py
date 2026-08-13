@@ -6,7 +6,8 @@ from typing import cast
 import astropy.io.fits
 import numpy as np
 
-from umbra.common import fits
+from umbra.common import coords, fits, imageio
+from umbra.common.disk import binary_disk
 from umbra.common.terminal import cprint
 
 
@@ -36,6 +37,31 @@ def single_filepaths(
                 f"{group_name or '(ungrouped)'}: {', '.join(p.name for p in group_filepaths)}.")
         filepaths.append(group_filepaths[0])
     return filepaths
+
+
+def measure_black_and_white_points(filepaths: Sequence[Path], moon_interior_factor: float = 0.5) -> tuple[float, float]:
+    """
+    The two levels the stacks span, read off the ends of ``filepaths``, longest exposure first.
+
+    Only the values in between mean anything: the white point is where the imaging system clips,
+    the black point is where the images sit when they hold no signal. The white point is the
+    maximum of the longest exposure, which clips over the inner corona. The black point is the
+    median inside the moon's disk of the shortest exposure, the one place that holds nothing to
+    record: no corona by construction, and no earthshine at that exposure. The frame at large
+    would not do, since registration pads it with zeros, and neither would a minimum, which lands
+    on the deepest noise excursion or on a dead pixel.
+
+    The disk is shrunk by ``moon_interior_factor`` to keep out the limb, where scattered light and
+    any residual registration error sit.
+    """
+    white_point = float(imageio.read(filepaths[0])[0].max())
+
+    img, header = imageio.read(filepaths[-1])
+    center = np.array([header["MOON-X"], header["MOON-Y"]])
+    radius = moon_interior_factor * cast(float, header["MOON-R"])
+    interior = binary_disk(center, radius, coords.Region.from_shape(img.shape))
+    black_point = float(np.median(img[interior]))
+    return black_point, white_point
 
 
 def read_exposure_times(headers: Sequence[astropy.io.fits.Header], filepaths: Sequence[Path]) -> list[float]:
