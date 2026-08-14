@@ -63,9 +63,14 @@ def linear_trigo_fit(x: np.ndarray, theta: np.ndarray, y: np.ndarray, degree: in
     coeffs = np.linalg.lstsq(X, y, rcond=None)[0] # X @ coeffs ~= y
     return coeffs[:1+2*degree], coeffs[1+2*degree:]
 
-def build_affine_map(img_theta: np.ndarray, offset_coeffs: np.ndarray, slope_coeffs: np.ndarray,
-                     lut_size: int = 10000) -> tuple[np.ndarray, np.ndarray]:
-    """Evaluate the fitted offset and slope at every pixel of the frame."""
+def build_affine_map(img_theta: np.ndarray, img_damping: np.ndarray, offset_coeffs: np.ndarray,
+                     slope_coeffs: np.ndarray, lut_size: int = 10000) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Evaluate the fitted offset and slope at every pixel of the frame.
+
+    ``img_damping`` scales down how much the offset and slope vary with the angle, leaving their
+    means alone.
+    """
     degree = (len(offset_coeffs) - 1) // 2
     lut_theta = np.linspace(0, 2*np.pi, lut_size, dtype=np.float32)
     lut_basis = evaluate_trigonometric_basis(lut_theta, degree)
@@ -76,16 +81,18 @@ def build_affine_map(img_theta: np.ndarray, offset_coeffs: np.ndarray, slope_coe
     def evaluate(coeffs: np.ndarray) -> np.ndarray:
         coeffs = coeffs.astype(np.float32)
         lut_values = (lut_basis @ coeffs[1:])
-        return coeffs[0] + lut_values[img_lut_index]
+        return coeffs[0] + lut_values[img_lut_index]*img_damping
 
     return evaluate(offset_coeffs), evaluate(slope_coeffs)
 
-def equalize_brightness(img_x: np.ndarray, img_theta: np.ndarray, img_y: np.ndarray, mask: np.ndarray,
-                        center: np.ndarray, degree: int = 4, num_samples: int = 1000) -> np.ndarray:
+def equalize_brightness(img_x: np.ndarray, img_theta: np.ndarray, img_radius: np.ndarray, img_y: np.ndarray,
+                        mask: np.ndarray, center: np.ndarray, moon_radius: float,
+                        degree: int = 4, num_samples: int = 1000) -> np.ndarray:
     """
     Rescale ``img_x`` onto the brightness of ``img_y``, through an affine map varying with the angle.
 
     The map is fitted on pixels drawn from ``mask``, which holds those both stacks record faithfully.
+    To avoid the discontinuity at the center, its angular variation fades to zero from the limb inwards.
     """
     rows, cols = sample_polar(mask, center, num_samples)
     sample_x, sample_y = img_x[rows, cols].mean(axis=1), img_y[rows, cols].mean(axis=1)
@@ -93,7 +100,8 @@ def equalize_brightness(img_x: np.ndarray, img_theta: np.ndarray, img_y: np.ndar
     # Every angle is fitted at once, through the interactions of x with the trigonometric basis.
     offset_trigo_coeffs, slope_trigo_coeffs = linear_trigo_fit(sample_x, img_theta[rows, cols], sample_y, degree)
 
-    img_offset, img_slope = build_affine_map(img_theta, offset_trigo_coeffs, slope_trigo_coeffs)
+    img_damping = np.clip(img_radius / moon_radius, 0, 1)
+    img_offset, img_slope = build_affine_map(img_theta, img_damping, offset_trigo_coeffs, slope_trigo_coeffs)
 
     equalized = img_slope[:,:,None] * img_x
     equalized += img_offset[:,:,None]

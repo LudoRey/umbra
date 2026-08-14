@@ -6,7 +6,7 @@ import numpy as np
 
 from umbra.common import context, coords, fits, imageio
 from umbra.common.disk import binary_disk
-from umbra.common.polar import angle_map
+from umbra.common.polar import angle_map, radius_map
 from umbra.common.terminal import cprint
 from umbra.hdr import equalization, io, weighting
 
@@ -60,10 +60,12 @@ def main(
     exposure_times = io.read_exposure_times(headers, filepaths)
 
     center = np.array([geometry["MOON-X"], geometry["MOON-Y"]])
+    moon_radius = cast(float, geometry["MOON-R"])
     # Padded past the limb: everything the moon swept over during totality
-    moon_radius = equalization.MOON_RADIUS_FACTOR * cast(float, geometry["MOON-R"])
-    moon_mask = binary_disk(center, moon_radius, coords.Region.from_shape(shape))
+    padded_radius = equalization.MOON_RADIUS_FACTOR * moon_radius
+    moon_mask = binary_disk(center, padded_radius, coords.Region.from_shape(shape))
     img_theta = angle_map(center[0], center[1], shape=shape[:2])
+    img_radius = radius_map(center[0], center[1], shape=shape[:2])
 
     cprint("Measuring the black and white points:", style="bold", color="cyan")
     black_point, white_point = io.measure_black_and_white_points(filepaths)
@@ -109,7 +111,8 @@ def main(
         if index > 0:
             assert img_y is not None and valid_y is not None
             cprint("Equalizing the brightness against the previous stack...", flush=True)
-            img_x = equalization.equalize_brightness(img_x, img_theta, img_y, valid_x & valid_y & ~moon_mask, center)
+            img_x = equalization.equalize_brightness(img_x, img_theta, img_radius, img_y,
+                                                     valid_x & valid_y & ~moon_mask, center, moon_radius)
             cprint("Brightness equalized.")
             context.checkstate()
 
