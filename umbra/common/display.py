@@ -41,7 +41,9 @@ def ht(x, m, vmin=None, vmax=None):
     x = mtf(x, m)
     return x
 
-def generate_ht_lut(m, vmin, vmax, bits=16):
+LUT_BITS = 24
+
+def generate_ht_lut(m, vmin, vmax, bits=LUT_BITS):
     x = np.linspace(0,1,2**bits)
     lut = ht(x, m, vmin, vmax)
     lut = (lut * 255).astype(np.uint8)
@@ -51,7 +53,7 @@ def generate_ht_lut(m, vmin, vmax, bits=16):
 #     x = lut[x]
 #     return x
 
-def ht_lut(x, m, vmin=None, vmax=None, bits=16, has_nans: bool = False):
+def ht_lut(x, m, vmin=None, vmax=None, bits=LUT_BITS, has_nans: bool = False):
     '''Returns an 8-bit image. NaN pixels are mapped to 0 (black).'''
     nan_mask = None
     if has_nans:
