@@ -82,7 +82,6 @@ def compute_transform(
     img: np.ndarray,
     ref_mass_center: tuple[float, float],
     max_iter: int,
-    error_overlay_opacity: float,
 ) -> sk.transform.EuclideanTransform:
     '''
     Returns the parameters of the estimated transform "ref_img -> img".
@@ -90,7 +89,7 @@ def compute_transform(
     '''
     # Display the two images
     context.checkstate()
-    context.emit_image(red_cyan_blend(ref_img, img, error_overlay_opacity=error_overlay_opacity))
+    context.emit_image(red_cyan_blend(ref_img, img))
 
     # Initialize transform parameters
     cprint("Initializing transform:", style='bold')
@@ -111,7 +110,7 @@ def compute_transform(
         # GUI callback
         theta, tx, ty = obj.convert_x_to_params(x)
         tform = transform.centered_rigid_transform(center=ref_mass_center, rotation=theta, translation=(tx,ty))
-        context.emit_image(red_cyan_blend(ref_img, transform.warp(img, tform.inverse.params), error_overlay_opacity=error_overlay_opacity))
+        context.emit_image(red_cyan_blend(ref_img, transform.warp(img, tform.inverse.params)))
 
         # Display info
         dtheta, dtx, dty = obj.convert_x_to_params(delta) if delta is not None else (None, None, None)
@@ -141,17 +140,14 @@ def compute_sun_moon_translation(
     # This is given by the difference of the sun/moon transforms "anchor -> ref" (because rotation is applied before translation)
     return - (sun_tform.inverse.translation - moon_tform.inverse.translation) # want ref to anchor, hence flipped sign
 
-def red_cyan_blend(img1: np.ndarray, img2: np.ndarray, error_overlay_opacity: float = 0.75) -> np.ndarray:
-    mean = (img1 + img2)/2
+def red_cyan_blend(img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
     diff = img1 - img2
-    mean *= (1-error_overlay_opacity)
-    diff *= error_overlay_opacity
 
     color_img = np.zeros((*img1.shape, 3), img1.dtype)
-    color_img[...,0] = mean + diff
-    color_img[...,1] = mean - diff
-    color_img[...,2] = mean - diff
-    
+    color_img[...,0] = diff
+    color_img[...,1] = -diff
+    color_img[...,2] = -diff
+
     color_img -= color_img.min() # in-place is much faster
     color_img /= color_img.max()
     return color_img

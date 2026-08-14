@@ -107,7 +107,6 @@ def process_anchors(
     num_edge_pixels: float,
     sigma_high_pass_tangential: float,
     max_iter: int,
-    error_overlay_opacity: float,
 ) -> tuple[list[astropy.io.fits.Header], list[np.ndarray], list[float], list[sk.transform.EuclideanTransform], list[sk.transform.EuclideanTransform]]:
     """Load anchors, detect moon, and sun-align images.
 
@@ -134,7 +133,7 @@ def process_anchors(
             cprint(f"Computing anchor transform {i} -> {i+1}:", style='bold', color='cyan')
             tform = registration.sun.compute_transform(
                 prev_preprocessed_img, preprocessed_img,
-                prev_mass_center, max_iter, error_overlay_opacity,
+                prev_mass_center, max_iter,
             )
             sun_tforms_pairwise.append(tform)
             cprint(f"Anchor transform {i} -> {i+1} computed successfully.", color='green')

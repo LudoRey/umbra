@@ -22,8 +22,6 @@ def main(
     # Sun registration
     sigma_high_pass_tangential: float,
     max_iter: int,
-    # GUI interactions
-    error_overlay_opacity: float,
 ) -> None:
     num_clipped_pixels, num_edge_pixels = pipeline.compute_moon_detection_params(image_scale, clipped_factor, edge_factor)
     fits_dir, moon_registered_dir, sun_registered_dir = map(Path, (fits_dir, moon_registered_dir, sun_registered_dir))
@@ -35,7 +33,7 @@ def main(
     ### Process anchor images: compute moon/sun transforms (in first anchor frame) and other values
     anchor_headers, moon_centers, moon_radii, sun_tforms_from_first_anchor, moon_tforms_from_first_anchor = pipeline.process_anchors(
         anchor_filenames, fits_dir, num_clipped_pixels, num_edge_pixels,
-        sigma_high_pass_tangential, max_iter, error_overlay_opacity,
+        sigma_high_pass_tangential, max_iter,
     )
 
     ### Process reference image and compute moon/sun transforms from first anchor to reference
