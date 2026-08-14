@@ -9,8 +9,8 @@ MOON_RADIUS_FACTOR = 1.15
 ANGLES_PER_CHUNK = 1000
 
 def evaluate_trigonometric_basis(theta: np.ndarray, degree: int) -> np.ndarray:
-    """The basis 1, cos(n*theta), sin(n*theta) up to ``degree``, one row per angle."""
-    out = [np.ones(theta.shape[0])]
+    """The basis cos(n*theta), sin(n*theta) for n up to ``degree``, one row per angle."""
+    out = []
     for n in range(1, degree+1):
         out.append(np.cos(n*theta))
         out.append(np.sin(n*theta))
@@ -52,25 +52,33 @@ def sample_polar(mask: np.ndarray, center: np.ndarray, num_samples: int) -> tupl
     return rows, cols
 
 def linear_trigo_fit(x: np.ndarray, theta: np.ndarray, y: np.ndarray, degree: int) -> tuple[np.ndarray, np.ndarray]:
-    """Least-squares fit of ``y ~ offset(theta) + slope(theta)*x``, returning the coefficients of both."""
-    # One feature per basis term, then the same terms interacted with x (a term is e.g. x*sin(theta)).
-    trigo_basis = evaluate_trigonometric_basis(theta, degree)
-    X = np.concatenate([trigo_basis, trigo_basis*x[:,None]], axis=1)
+    """
+    Least-squares fit of ``y ~ offset(theta) + slope(theta)*x``, returning the coefficients of both.
+    offset and slope are of the form a_0 + sum(a_n*cos(n*theta) + b_n*sin(n*theta)) for n up to ``degree``.
+    """
+    basis = evaluate_trigonometric_basis(theta, degree)
+    ones = np.ones((len(x), 1))
+    X = np.concatenate([ones, basis, x[:,None], basis*x[:,None]], axis=1)
 
     coeffs = np.linalg.lstsq(X, y, rcond=None)[0] # X @ coeffs ~= y
     return coeffs[:1+2*degree], coeffs[1+2*degree:]
 
-def evaluate_trigonometric_polynomial(theta: np.ndarray, coeffs: np.ndarray, degree: int,
-                                      num_samples: int = 10000) -> np.ndarray:
-    """
-    Evaluate a trigonometric polynomial at every angle of ``theta``, which it returns the shape of.
+def build_affine_map(img_theta: np.ndarray, offset_coeffs: np.ndarray, slope_coeffs: np.ndarray,
+                     lut_size: int = 10000) -> tuple[np.ndarray, np.ndarray]:
+    """Evaluate the fitted offset and slope at every pixel of the frame."""
+    degree = (len(offset_coeffs) - 1) // 2
+    lut_theta = np.linspace(0, 2*np.pi, lut_size, dtype=np.float32)
+    lut_basis = evaluate_trigonometric_basis(lut_theta, degree)
 
-    The curve is collapsed against ``coeffs`` on a uniform grid of ``num_samples`` angles and then
-    indexed, rather than evaluating the basis at every angle.
-    """
-    grid = np.linspace(0, 2*np.pi, num_samples)
-    curve = evaluate_trigonometric_basis(grid, degree) @ coeffs
-    return curve[np.rint(theta * ((num_samples - 1) / (2*np.pi))).astype(np.int32)]
+    # Convert the angles to indices of the LUT
+    img_lut_index = np.rint(img_theta * ((lut_size - 1) / (2*np.pi))).astype(np.int32)
+
+    def evaluate(coeffs: np.ndarray) -> np.ndarray:
+        coeffs = coeffs.astype(np.float32)
+        lut_values = (lut_basis @ coeffs[1:])
+        return coeffs[0] + lut_values[img_lut_index]
+
+    return evaluate(offset_coeffs), evaluate(slope_coeffs)
 
 def equalize_brightness(img_x: np.ndarray, img_theta: np.ndarray, img_y: np.ndarray, mask: np.ndarray,
                         center: np.ndarray, degree: int = 4, num_samples: int = 1000) -> np.ndarray:
@@ -85,6 +93,8 @@ def equalize_brightness(img_x: np.ndarray, img_theta: np.ndarray, img_y: np.ndar
     # Every angle is fitted at once, through the interactions of x with the trigonometric basis.
     offset_trigo_coeffs, slope_trigo_coeffs = linear_trigo_fit(sample_x, img_theta[rows, cols], sample_y, degree)
 
-    img_offset = evaluate_trigonometric_polynomial(img_theta, offset_trigo_coeffs, degree)
-    img_slope = evaluate_trigonometric_polynomial(img_theta, slope_trigo_coeffs, degree)
-    return img_offset[:,:,None] + img_slope[:,:,None]*img_x
+    img_offset, img_slope = build_affine_map(img_theta, offset_trigo_coeffs, slope_trigo_coeffs)
+
+    equalized = img_slope[:,:,None] * img_x
+    equalized += img_offset[:,:,None]
+    return equalized
