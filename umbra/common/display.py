@@ -8,28 +8,41 @@ def combine_red_green(img1, img2):
     img[:,:,1] = img2 
     return img
 
-# Percentage of the pixels left below the black point, which is where the noise floor is
-# taken to be.
-NOISE_FLOOR_QUANTILE = 0.2
 # Quantiles converge long before every pixel is needed, and this is the whole cost of
 # compute_statistics, so the image is sampled rather than read in full.
 ROW_SUBSAMPLING = 4
+# The black point is read off these precomputed levels instead of the image. Uniform spacing
+# puts the finest value resolution where the pixels are densest, which is where the black
+# point sits; 2**14 of them resolve it to within one ADU of a 16-bit sensor.
+QUANTILE_LEVELS = np.linspace(0, 1, 2**14)
 
 def compute_statistics(x, has_nans: bool = False):
-    '''Returns the noise floor of x, and its maximum.'''
-    rows = x[::ROW_SUBSAMPLING]
-    count = rows.size - np.isnan(rows).sum() if has_nans else rows.size
-    # Pixels at or below zero already display as black, so the quantile is taken among the
-    # rest; otherwise a padded border would absorb it and pin the noise floor at zero.
-    zeros = np.count_nonzero(rows <= 0)
-    level = (zeros + NOISE_FLOOR_QUANTILE/100*(count - zeros - 1))/(count - 1)
-    quantile = np.nanquantile if has_nans else np.quantile
-    return {"noise_floor": quantile(rows, level),
+    '''Returns the quantiles of the above-zero pixels of x, and its maximum.'''
+    # Sorting outright costs about what a single np.quantile does, and makes every further
+    # quantile a lookup, so the sampled rows are sorted once and indexed.
+    values = np.sort(x[::ROW_SUBSAMPLING], axis=None)
+    if has_nans:
+        # np.sort orders NaNs last, leaving the finite values as a prefix.
+        values = values[:np.searchsorted(values, np.nan, side="left")]
+    # Pixels at or below zero already display as black, so the quantiles are taken among the
+    # rest; otherwise a padded border would absorb them and pin the black point at zero.
+    zeros = np.searchsorted(values, 0, side="right")
+    return {"quantiles": quantile(values, zeros, QUANTILE_LEVELS),
             "max": np.nanmax(x) if has_nans else x.max()}
 
-def auto_ht_params(statistics, shadow_gain: float = 10):
-    '''shadow_gain is the slope of the MTF at 0, and the midpoint is exactly its reciprocal.'''
-    return 1/(1 + shadow_gain), statistics["noise_floor"], statistics["max"]
+def quantile(values, start, level):
+    '''Linearly interpolated quantile(s) of the sorted values[start:], as np.quantile takes it.
+    level may be an array, which costs no more than the sort it is read from.'''
+    index = start + np.asarray(level)*(values.size - start - 1)
+    low, high = np.floor(index).astype(np.intp), np.ceil(index).astype(np.intp)
+    return values[low] + (values[high] - values[low])*(index - low)
+
+def auto_ht_params(statistics, shadow_gain: float = 10, black_point: float = 0.2):
+    '''shadow_gain is the slope of the MTF at 0, and the midpoint is exactly its reciprocal.
+    black_point is the percentage of the above-zero pixels left below it.'''
+    return (1/(1 + shadow_gain),
+            np.interp(black_point/100, QUANTILE_LEVELS, statistics["quantiles"]),
+            statistics["max"])
 
 def ht(x, m, vmin=None, vmax=None):
     if vmin is None:
