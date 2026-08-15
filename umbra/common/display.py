@@ -8,6 +8,15 @@ def combine_red_green(img1, img2):
     img[:,:,1] = img2 
     return img
 
+def gray_world_gains(img: np.ndarray, mask: np.ndarray) -> np.ndarray:
+    '''Per-channel gains neutralizing the masked pixels of img, which are taken to be white.
+
+    The gains equalize the per-channel means over the mask, and are scaled so that their own
+    mean is 1: calibration changes the balance between the channels, not the overall level.
+    mask is a boolean (H, W) array over an (H, W, C) image.'''
+    means = img[mask].mean(axis=0)
+    return means.mean()/means
+
 # Quantiles converge long before every pixel is needed, and this is the whole cost of
 # compute_statistics, so the image is sampled rather than read in full.
 ROW_SUBSAMPLING = 4
