@@ -55,6 +55,7 @@ def debayer(img: np.ndarray, pattern: str, algorithm: str = "bilinear") -> np.nd
     except KeyError as exc:
         raise ValueError(f"Unsupported demosaicing algorithm {algorithm}.") from exc
     print("Debayering...", end="", flush=True)
-    rgb = demosaic(img, pattern)
+    # colour_demosaicing works in colour-science's default float dtype (float64).
+    rgb = demosaic(img, pattern).astype(img.dtype, copy=False)
     print("Done.")
     return np.clip(rgb, 0, 1)
