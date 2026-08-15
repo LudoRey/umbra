@@ -10,6 +10,12 @@ from umbra.common import context
 from umbra.common.terminal import cprint
 
 
+# Apparent lunar radius in degrees. The upper bound is reached at perigee; the lower bound is the
+# smallest apparent solar radius, below which the eclipse could not be total.
+MIN_RADIUS_DEGREE = 0.262
+MAX_RADIUS_DEGREE = 0.279
+
+
 def preprocess(
     img: np.ndarray,
     num_clipped_pixels: float,
@@ -31,6 +37,7 @@ def preprocess(
 def detect_moon(
     img: np.ndarray,
     num_edge_pixels: float,
+    image_scale: float,
 ) -> tuple[np.ndarray, float]:
     # Compute image gradient (edges)
     print(f"Computing edge map...", end=" ", flush=True)
@@ -52,8 +59,28 @@ def detect_moon(
     print("Circle parameters:")
     print(f"- Center: ({moon_x:.2f}, {moon_y:.2f})")
     print(f"- Radius: {moon_radius:.2f}")
-    
+    validate_radius(float(moon_radius), image_scale)
+
     return np.array([moon_x, moon_y]), float(moon_radius)
+
+def degree_to_pixels(angle: float, image_scale: float) -> float:
+    '''Convert an angle in degrees to a length in pixels, for an image scale in arcseconds/pixel.'''
+    return angle * 3600 / image_scale
+
+def validate_radius(moon_radius: float, image_scale: float, tolerance: float = 0.05) -> None:
+    '''Raise if the detected radius is implausible.
+
+    The Earth-moon distance is unknown, so any radius between MIN_RADIUS_DEGREE and
+    MAX_RADIUS_DEGREE is accepted. The tolerance widens that range on both ends, to absorb
+    image scale and detection inaccuracies.
+    '''
+    lower = (1 - tolerance) * degree_to_pixels(MIN_RADIUS_DEGREE, image_scale)
+    upper = (1 + tolerance) * degree_to_pixels(MAX_RADIUS_DEGREE, image_scale)
+    if not lower <= moon_radius <= upper:
+        raise RuntimeError(
+            f"Detected moon radius ({moon_radius:.2f} px) is outside the expected range "
+            f"({lower:.2f} - {upper:.2f} px): check the image scale and the moon detection parameters."
+        )
 
 def clip_brightest_pixels(img: np.ndarray, num_clipped_pixels: float) -> tuple[np.ndarray, float]:
     # Compute threshold

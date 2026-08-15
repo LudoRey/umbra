@@ -19,9 +19,9 @@ def compute_moon_detection_params(
     edge_factor: float,
 ) -> tuple[float, float]:
     """Compute pixel-space moon detection parameters from physical quantities."""
-    moon_radius_pixels = 0.279 * 3600 / image_scale
-    num_clipped_pixels = np.pi * (clipped_factor**2 - 1) * moon_radius_pixels**2
-    num_edge_pixels = edge_factor * 2 * np.pi * moon_radius_pixels
+    max_moon_radius = registration.moon.degree_to_pixels(registration.moon.MAX_RADIUS_DEGREE, image_scale)
+    num_clipped_pixels = np.pi * (clipped_factor**2 - 1) * max_moon_radius**2
+    num_edge_pixels = edge_factor * 2 * np.pi * max_moon_radius
     return num_clipped_pixels, num_edge_pixels
 
 
@@ -93,10 +93,11 @@ def preprocess_and_detect_moon(
     img: np.ndarray,
     num_clipped_pixels: float,
     num_edge_pixels: float,
+    image_scale: float,
 ) -> tuple[np.ndarray, np.ndarray, float]:
     """Preprocess an image and detect the moon, returning (preprocessed_img, moon_center, moon_radius)."""
     img = registration.moon.preprocess(img, num_clipped_pixels)
-    moon_center, moon_radius = registration.moon.detect_moon(img, num_edge_pixels)
+    moon_center, moon_radius = registration.moon.detect_moon(img, num_edge_pixels, image_scale)
     return img, moon_center, moon_radius
 
 
@@ -105,6 +106,7 @@ def process_anchors(
     fits_dir: Path,
     num_clipped_pixels: float,
     num_edge_pixels: float,
+    image_scale: float,
     sigma_high_pass_tangential: float,
     max_iter: int,
 ) -> tuple[list[astropy.io.fits.Header], list[np.ndarray], list[float], list[sk.transform.EuclideanTransform], list[sk.transform.EuclideanTransform]]:
@@ -125,7 +127,7 @@ def process_anchors(
     for i, filename in enumerate(anchor_filenames):
         cprint(f"Processing anchor image {filename} ({i+1}/{len(anchor_filenames)}):", style='bold', color='cyan')
         img, header = imageio.read(fits_dir / filename)
-        img, moon_center, moon_radius = preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels)
+        img, moon_center, moon_radius = preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, image_scale)
         preprocessed_img, mass_center = registration.sun.preprocess(img, moon_center, moon_radius, sigma_high_pass_tangential)
         cprint(f"Anchor image {filename} processed successfully ({i+1}/{len(anchor_filenames)}).", color='green')
 

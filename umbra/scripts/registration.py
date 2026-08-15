@@ -32,7 +32,7 @@ def main(
 
     ### Process anchor images: compute moon/sun transforms (in first anchor frame) and other values
     anchor_headers, moon_centers, moon_radii, sun_tforms_from_first_anchor, moon_tforms_from_first_anchor = pipeline.process_anchors(
-        anchor_filenames, fits_dir, num_clipped_pixels, num_edge_pixels,
+        anchor_filenames, fits_dir, num_clipped_pixels, num_edge_pixels, image_scale,
         sigma_high_pass_tangential, max_iter,
     )
 
@@ -40,7 +40,7 @@ def main(
     cprint(f"Processing reference image: {ref_filename}", style='bold', color='cyan')
     ref_img, ref_header = imageio.read(fits_dir / ref_filename)
     if ref_filename not in anchor_filenames:
-        _, ref_moon_center, ref_moon_radius = pipeline.preprocess_and_detect_moon(ref_img, num_clipped_pixels, num_edge_pixels)
+        _, ref_moon_center, ref_moon_radius = pipeline.preprocess_and_detect_moon(ref_img, num_clipped_pixels, num_edge_pixels, image_scale)
         ref_timestamp = fits.extract_timestamp(ref_header)
         anchor_timestamps = [fits.extract_timestamp(header) for header in anchor_headers]
         moon_tform_from_first_anchor_to_ref, sun_tform_from_first_anchor_to_ref = pipeline.interpolate_transforms_to_ref(
@@ -88,7 +88,7 @@ def main(
         for i, filename in enumerate(remaining_filenames):
             cprint(f"Registering non-anchor image {filename} ({i+1}/{len(remaining_filenames)}):", style='bold', color='cyan')
             img, header = imageio.read(fits_dir / filename)
-            _, moon_center, moon_radius = pipeline.preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels)
+            _, moon_center, moon_radius = pipeline.preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, image_scale)
             cprint(f"Interpolating:", style='bold')
             timestamp = fits.extract_timestamp(header)
             print(f"Time delta: {timestamp - ref_timestamp} sec")
