@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from typing import cast
 
 import numpy as np
 import astropy.io.fits
@@ -9,25 +8,39 @@ from umbra.common import coords
 from umbra.common.fits import Header, extract_shape
 
 
+def _image_hdu(
+    hdul: astropy.io.fits.HDUList, filepath: Path | str,
+) -> astropy.io.fits.PrimaryHDU | astropy.io.fits.ImageHDU:
+    """The HDU holding the image.
+
+    A compressed image cannot live in the primary HDU, so it sits in the first extension
+    behind an empty one.
+    """
+    hdu = hdul[1] if hdul[0].header["NAXIS"] == 0 and len(hdul) > 1 else hdul[0]
+    hdu.verify('silentfix')
+    if hdu.header["NAXIS"] == 0:
+        raise ValueError(f"Found no image data in {filepath}.")
+    return hdu
+
+
 def read(filepath: Path | str, region: coords.Region | None = None) -> tuple[np.ndarray, Header]:
     """Read a FITS file into ``(data, header)`` (native dtype, HxW or HxWxC).
 
     A CFA mosaic exposes its pattern via the ``BAYERPAT`` header keyword.
     """
     with astropy.io.fits.open(filepath) as hdul:
-        hdu = cast(astropy.io.fits.PrimaryHDU, hdul[0])
-        hdu.verify('silentfix')
+        hdu = _image_hdu(hdul, filepath)
         header = hdu.header
-        data = hdu.data
-        if not isinstance(data, np.ndarray):
-            raise ValueError(f"Found no image data in {filepath}.")
-        # Crop while still in FITS-native CxHxW (color) / HxW (mono) layout.
+        # Crop while still in FITS-native CxHxW (color) / HxW (mono) layout. Indexing
+        # `section` reads only the requested rows, where indexing `data` would first
+        # materialize the whole image whenever astropy has to transform it on the way in
+        # -- decompressing every tile, or applying the uint16 BZERO offset.
         if region is None:
-            img = data
-        elif data.ndim == 2:
-            img = data[region.top:region.bottom, region.left:region.right]
+            img = hdu.section[:]
+        elif len(extract_shape(header)) == 2:
+            img = hdu.section[region.top:region.bottom, region.left:region.right]
         else:
-            img = data[:, region.top:region.bottom, region.left:region.right]
+            img = hdu.section[:, region.top:region.bottom, region.left:region.right]
     # FITS stores color as CxHxW; expose it as HxWxC.
     if img.ndim == 3:
         img = np.moveaxis(img, 0, 2)
@@ -36,9 +49,7 @@ def read(filepath: Path | str, region: coords.Region | None = None) -> tuple[np.
 
 def read_header(filepath: Path | str) -> Header:
     with astropy.io.fits.open(filepath) as hdul:
-        hdu = cast(astropy.io.fits.PrimaryHDU, hdul[0])
-        hdu.verify('silentfix')
-        return hdu.header
+        return _image_hdu(hdul, filepath).header
 
 
 def read_shape(filepath: Path | str) -> tuple[int, ...]:
