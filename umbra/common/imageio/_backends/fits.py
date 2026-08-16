@@ -49,6 +49,8 @@ def write(filepath: Path | str, data: np.ndarray, header: Header | None) -> None
     """Write image data and header to a FITS file, creating parent dirs as needed."""
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     if data.ndim == 3:
-        data = np.moveaxis(data, 2, 0)
+        # astropy byteswaps into the FITS big-endian order element by element when handed a
+        # strided view, which costs far more than materializing the transpose up front.
+        data = np.ascontiguousarray(np.moveaxis(data, 2, 0))
     hdu = astropy.io.fits.PrimaryHDU(data=data, header=header)
     hdu.writeto(filepath, overwrite=True)
