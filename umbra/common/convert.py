@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 
 
-def to_float(img: np.ndarray) -> np.ndarray:
+def to_float32(img: np.ndarray) -> np.ndarray:
     """Convert an image array to float32 in [0, 1]."""
     if np.issubdtype(img.dtype, np.floating):
         _ensure_float_in_zero_one(img)

@@ -30,14 +30,14 @@ def read(
     filepath: Path | str,
     region: coords.Region | None = None,
     *,
-    to_float: bool = True,
+    to_float32: bool = True,
     debayer: bool = False,
     verbose: bool = True,
 ) -> tuple[np.ndarray, Header]:
     """Read any supported image file into ``(data, header)``.
 
-    With ``to_float=True`` the pixel data is converted to float in [0, 1]; pass
-    ``to_float=False`` to keep the native dtype.
+    With ``to_float32=True`` the pixel data is converted to float in [0, 1]; pass
+    ``to_float32=False`` to keep the native dtype.
 
     By default the data is not debayered: CFA sources expose their mosaic and
     record the pattern in ``header["BAYERPAT"]`` (read it via
@@ -48,8 +48,8 @@ def read(
     if verbose:
         cprint(f"Opening {filepath}...")
     data, header = backend_for(filepath).read(filepath, region)
-    if to_float:
-        data = convert.to_float(data)
+    if to_float32:
+        data = convert.to_float32(data)
     if debayer:
         pattern = extract_bayer_pattern(header)
         if pattern is not None:
