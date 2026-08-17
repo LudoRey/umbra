@@ -8,6 +8,7 @@ from umbra.common.terminal import cprint
 from umbra.common.fits import Header, extract_bayer_pattern
 from umbra.common.imageio.extensions import BITMAP, FITS, RAW, SUPPORTED
 from umbra.common.imageio._backends import bitmap, fits, raw
+from umbra.common.imageio._backends.fits import Format
 
 
 _BACKEND_BY_EXTENSIONS: tuple[tuple[frozenset[str], ModuleType], ...] = (
@@ -87,9 +88,13 @@ def write(
     data: np.ndarray,
     header: Header | None,
     *,
+    format: Format = "float32",
     verbose: bool = True,
 ) -> None:
     """Write image data and header to a file, dispatching by extension.
+
+    ``format`` selects the on-disk representation; see
+    :func:`umbra.common.imageio._backends.fits.write`, the only backend that writes.
 
     Raises
     ------
@@ -102,5 +107,5 @@ def write(
         raise NotImplementedError(f"Writing {Path(filepath).suffix} files is not supported.")
     if verbose:
         cprint(f"Writing {filepath}...")
-    write(filepath, data, header)
+    write(filepath, data, header, format=format)
     context.checkstate()
