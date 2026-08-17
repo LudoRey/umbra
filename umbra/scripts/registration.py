@@ -22,6 +22,8 @@ def main(
     # Sun registration
     sigma_high_pass_tangential: float,
     max_iter: int,
+    # Output
+    output_format: imageio.Format = "uint16-compressed",
 ) -> None:
     num_clipped_pixels, num_edge_pixels = pipeline.compute_moon_detection_params(image_scale, clipped_factor, edge_factor)
     fits_dir, moon_registered_dir, sun_registered_dir = map(Path, (fits_dir, moon_registered_dir, sun_registered_dir))
@@ -53,8 +55,8 @@ def main(
         moon_tform_from_first_anchor_to_ref = moon_tforms_from_first_anchor[anchor_index]
         sun_tform_from_first_anchor_to_ref = sun_tforms_from_first_anchor[anchor_index]
     ref_moon_header, ref_sun_header = pipeline.update_headers(ref_header, ref_moon_center, ref_moon_radius)
-    imageio.write(moon_registered_dir / ref_filename, ref_img, ref_moon_header)
-    imageio.write(sun_registered_dir / ref_filename, ref_img, ref_sun_header)
+    imageio.write(moon_registered_dir / ref_filename, ref_img, ref_moon_header, format=output_format)
+    imageio.write(sun_registered_dir / ref_filename, ref_img, ref_sun_header, format=output_format)
     cprint(f"Reference image processed successfully.", color='green')
 
     ### Re-base transforms from reference to anchors, and extract anchor values (rotations and sun-moon translations)
@@ -76,8 +78,8 @@ def main(
         moon_registered_img, moon_header, sun_registered_img, sun_header = pipeline.apply_transforms(
             img, header, moon_center, moon_radius, moon_tform, sun_tform,
         )
-        imageio.write(moon_registered_dir / filename, moon_registered_img, moon_header)
-        imageio.write(sun_registered_dir / filename, sun_registered_img, sun_header)
+        imageio.write(moon_registered_dir / filename, moon_registered_img, moon_header, format=output_format)
+        imageio.write(sun_registered_dir / filename, sun_registered_img, sun_header, format=output_format)
         cprint(f"Anchor image {filename} registered successfully ({i+1}/{len(anchor_filenames)}).", color='green')
 
     ### Register remaining images through moon detection + timestamp-based interpolation of anchor values
@@ -101,8 +103,8 @@ def main(
             moon_registered_img, moon_header, sun_registered_img, sun_header = pipeline.apply_transforms(
                 img, header, moon_center, moon_radius, moon_tform, sun_tform,
             )
-            imageio.write(moon_registered_dir / filename, moon_registered_img, moon_header)
-            imageio.write(sun_registered_dir / filename, sun_registered_img, sun_header)
+            imageio.write(moon_registered_dir / filename, moon_registered_img, moon_header, format=output_format)
+            imageio.write(sun_registered_dir / filename, sun_registered_img, sun_header, format=output_format)
             cprint(f"Image {filename} registered successfully ({i+1}/{len(remaining_filenames)}).", color='green')
     cprint(f"Registration completed successfully.", style='bold', color='green')
 

@@ -15,6 +15,8 @@ def main(
     debayer_algorithm: str,
     calibration_outlier_threshold: float | None,
     save_master: bool,
+    # Output
+    output_format: imageio.Format = "uint16-compressed",
 ) -> None:
     raw_dir = Path(raw_dir)
     fits_dir = Path(fits_dir)
@@ -47,7 +49,7 @@ def main(
             header.remove("BAYERPAT")
         context.checkstate()
         context.emit_image(img)
-        imageio.write(output_filepath, img, header)
+        imageio.write(output_filepath, img, header, format=output_format)
     cprint("Conversion completed successfully.", style="bold", color="green")
 
 

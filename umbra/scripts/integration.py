@@ -24,6 +24,8 @@ def main(
     rejection_smoothness: float,
     # Fusion
     blend_smoothness: float,
+    # Output
+    output_format: imageio.Format = "float32",
 ) -> None:
     """
     Stack each group of registered images and merge the two alignments into one image.
@@ -77,7 +79,7 @@ def main(
 
         output_header = fits.combine([sun_header, moon_header, moon_geometry_header])
         filename = f"stack_{group_name}.fits" if group_name else "stack.fits"
-        imageio.write(os.path.join(stacks_dir, filename), merged_img, output_header)
+        imageio.write(os.path.join(stacks_dir, filename), merged_img, output_header, format=output_format)
         cprint(f"Stacked {len(sun_filepaths)} images{group_suffix} successfully ({group_idx}/{num_groups}).", color="green")
     cprint("Stacking completed successfully.", style='bold', color='green')
 

@@ -21,6 +21,7 @@ conversion:
   debayer_algorithm: 'bilinear' # or 'malvar', 'menon'
   calibration_outlier_threshold: null
   save_master: true
+  output_format: 'uint16-compressed' # 'float32', 'uint16', or 'uint16-compressed'
 
 registration:
   fits_dir: *fits_dir
@@ -34,6 +35,7 @@ registration:
   edge_factor: 1.0
   sigma_high_pass_tangential: 4.0
   max_iter: 10
+  output_format: 'uint16-compressed' # 'float32', 'uint16', or 'uint16-compressed'
 
 integration:
   moon_registered_dir: *moon_registered_dir
@@ -44,6 +46,7 @@ integration:
   rejection_extra_radius: 2
   rejection_smoothness: 10.0
   blend_smoothness: 3.0
+  output_format: 'float32' # 'float32', 'uint16', or 'uint16-compressed'
 
 hdr:
   stacks_dir: *stacks_dir
@@ -54,3 +57,4 @@ hdr:
   high_threshold: 0.8 # if exptimes[i]/exptimes[i+1] = k, then high/low must exceed k, comfortably
   high_smoothness: 0.1
   save_weights: false
+  output_format: 'float32' # 'float32', 'uint16', or 'uint16-compressed'

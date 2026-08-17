@@ -23,6 +23,8 @@ def main(
     high_smoothness: float,
     # Diagnostics
     save_weights: bool,
+    # Output
+    output_format: imageio.Format = "float32",
 ) -> None:
     """
     Combine the per-exposure stacks produced by integration.py into a single HDR image.
@@ -103,7 +105,7 @@ def main(
         weights = weighting.saturation_weighting(img_x, *low, *high)
         if save_weights:
             group_name = fits.format_group_name(group_values_list[index], group_keywords)
-            imageio.write(os.path.join(hdr_dir, f"weights_{group_name}.fits"), weights, None)
+            imageio.write(os.path.join(hdr_dir, f"weights_{group_name}.fits"), weights, None, format=output_format)
         weights = weights * exposure_times[index]
         context.checkstate()
 
@@ -138,7 +140,7 @@ def main(
     hdr_img /= divisor
 
     output_header = fits.combine([fits.intersect(headers), geometry])
-    imageio.write(os.path.join(hdr_dir, "hdr.fits"), hdr_img, output_header)
+    imageio.write(os.path.join(hdr_dir, "hdr.fits"), hdr_img, output_header, format=output_format)
     context.emit_image(hdr_img)
     cprint("HDR composition completed successfully.", style="bold", color="green")
 
