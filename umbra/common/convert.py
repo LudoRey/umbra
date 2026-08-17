@@ -4,12 +4,20 @@ import numpy as np
 
 
 def to_float32(img: np.ndarray) -> np.ndarray:
-    """Convert an image array to float32 in [0, 1]."""
+    """Convert an image array to float32 in [0, 1].
+
+    Floating point values already outside [0, 1] are passed through: they are representable,
+    and whoever has to bound them -- a display, a conversion to a fixed-point dtype -- knows
+    better than this function what to do about them.
+    """
     if np.issubdtype(img.dtype, np.floating):
-        _ensure_float_in_zero_one(img)
-        return img.astype(np.float32)
+        if _is_outside_zero_one(img):
+            warnings.warn("Floating point image values fall outside [0, 1].", UserWarning)
+        return np.asarray(img, dtype=np.float32)
     elif np.issubdtype(img.dtype, np.unsignedinteger):
-        return img.astype(np.float32) / np.iinfo(img.dtype).max
+        result = img.astype(np.float32)
+        result /= np.iinfo(img.dtype).max
+        return result
     elif np.issubdtype(img.dtype, np.signedinteger):
         result = img.astype(np.float32) / np.iinfo(img.dtype).max
         if result.min() < 0:
@@ -36,14 +44,17 @@ def to_uint16(img: np.ndarray) -> np.ndarray:
             img = img.astype(np.uint16)
             return (img << -shift) | img
     elif np.issubdtype(img.dtype, np.floating):
-        _ensure_float_in_zero_one(img)
-        return (img * 65535).astype(np.uint16)
+        if _is_outside_zero_one(img):
+            warnings.warn("Floating point image values outside [0, 1] were clipped.", UserWarning)
+        # Bounding the values is what makes the cast meaningful: casting 1.5 or -0.5 wraps
+        # around to an unrelated brightness instead of saturating.
+        scaled = img * 65535
+        np.clip(scaled, 0, 65535, out=scaled)
+        return scaled.astype(np.uint16)
     else:
         raise ValueError(f"Unsupported image dtype {img.dtype}, could not convert to uint16.")
-    
-def _ensure_float_in_zero_one(img: np.ndarray):
-    if img.min() < 0 or img.max() > 1:
-        warnings.warn("Floating point image values outside [0, 1] were clipped.", UserWarning)
-        img = np.clip(img, 0, 1)
-    return img
+
+
+def _is_outside_zero_one(img: np.ndarray) -> bool:
+    return bool(img.min() < 0 or img.max() > 1)
 
