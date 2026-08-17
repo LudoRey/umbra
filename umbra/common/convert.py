@@ -33,26 +33,37 @@ def to_float32(img: np.ndarray) -> np.ndarray:
 
 
 def to_uint16(img: np.ndarray) -> np.ndarray:
-    """Convert an image array to uint16 in [0, 65535]."""
-    if np.issubdtype(img.dtype, np.unsignedinteger):
-        shift = np.iinfo(img.dtype).bits - 16
-        if shift == 0: # already uint16
-            return img
-        if shift > 0:  # wider than uint16: keep the high bits
-            return (img >> shift).astype(np.uint16)
-        else:  # narrower than uint16: widen by replicating the bit pattern (uint8 0xAB -> 0xABAB)
-            img = img.astype(np.uint16)
-            return (img << -shift) | img
-    elif np.issubdtype(img.dtype, np.floating):
+    """Rescale an image so that its full scale spans [0, 65535], as uint16.
+
+    Full scale is 1.0 for floating point images and the dtype maximum for integer ones. What
+    an individual image happens to reach is never consulted, so a scene keeps its brightness
+    from frame to frame. Values are truncated rather than rounded, biasing them down by up to
+    one step; the endpoints stay exact either way.
+
+    Raises
+    ------
+    ValueError
+        If ``img`` is neither floating point nor unsigned integer.
+    """
+    if np.issubdtype(img.dtype, np.floating):
         if _is_outside_zero_one(img):
             warnings.warn("Floating point image values outside [0, 1] were clipped.", UserWarning)
         # Bounding the values is what makes the cast meaningful: casting 1.5 or -0.5 wraps
         # around to an unrelated brightness instead of saturating.
-        scaled = img * 65535
-        np.clip(scaled, 0, 65535, out=scaled)
-        return scaled.astype(np.uint16)
+        values = img * 65535
+        np.clip(values, 0, 65535, out=values)
+    elif np.issubdtype(img.dtype, np.unsignedinteger):
+        bits = np.iinfo(img.dtype).bits
+        if bits > 16:  # drop the low bits: 0xABCD1234 -> 0xABCD
+            values = img >> (bits - 16)
+        elif bits < 16:  # 65535 = 255 * 257, so replicating the byte lands 0xFF on 0xFFFF
+            widened = img.astype(np.uint16)
+            values = (widened << (16 - bits)) | widened
+        else:
+            values = img
     else:
         raise ValueError(f"Unsupported image dtype {img.dtype}, could not convert to uint16.")
+    return values.astype(np.uint16)
 
 
 def _is_outside_zero_one(img: np.ndarray) -> bool:
