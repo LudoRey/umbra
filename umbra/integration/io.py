@@ -3,7 +3,7 @@ from pathlib import Path
 
 import astropy.io.fits
 import numpy as np
-from umbra.common import coords, imageio
+from umbra.common import convert, coords, imageio
 from umbra.common.terminal import cprint
 
 
@@ -19,7 +19,10 @@ def read_stack(
     headers = []
     cprint(f"Loading images...", end=' ', flush=True)
     for i in range(N):
-        stack[i], header = imageio.read(filepaths[i], region, verbose=False)
+        # Converting into the stack slice keeps the frame's float32 form from being allocated
+        # and then copied here, which matters once several frames are read at once.
+        data, header = imageio.read(filepaths[i], region, to_float32=False, verbose=False)
+        convert.to_float32(data, out=stack[i])
         headers.append(header)
     print("Done.")
     return stack, headers
