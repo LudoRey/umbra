@@ -4,7 +4,7 @@ from pathlib import Path
 
 from umbra.common import fits, imageio
 from umbra.common.terminal import cprint
-from umbra.registration import pipeline
+from umbra.registration import moon, pipeline, plots
 
 
 def main(
@@ -32,6 +32,9 @@ def main(
     anchor_filenames = pipeline.resolve_anchor_filenames(anchor_filenames, fits_dir, group_keywords, num_clipped_pixels)
     remaining_filenames = pipeline.resolve_remaining_filenames(fits_dir, ref_filename, anchor_filenames)
 
+    records: list[plots.FrameRecord] = []  # per-frame results, emitted as diagnostic plots
+    radius_bounds = moon.radius_bounds(image_scale)
+
     ### Process anchor images: compute moon/sun transforms (in first anchor frame) and other values
     anchor_headers, moon_centers, moon_radii, sun_tforms_from_first_anchor, moon_tforms_from_first_anchor = pipeline.process_anchors(
         anchor_filenames, fits_dir, num_clipped_pixels, num_edge_pixels, image_scale,
@@ -43,6 +46,7 @@ def main(
     ref_img, ref_header = imageio.read(fits_dir / ref_filename)
     if ref_filename not in anchor_filenames:
         _, ref_moon_center, ref_moon_radius = pipeline.preprocess_and_detect_moon(ref_img, num_clipped_pixels, num_edge_pixels, image_scale)
+        records.append(plots.FrameRecord.from_frame(ref_filename, ref_header, ref_moon_center, ref_moon_radius, 0.0, np.zeros(2), is_anchor=False, is_reference=True))
         ref_timestamp = fits.extract_timestamp(ref_header)
         anchor_timestamps = [fits.extract_timestamp(header) for header in anchor_headers]
         moon_tform_from_first_anchor_to_ref, sun_tform_from_first_anchor_to_ref = pipeline.interpolate_transforms_to_ref(
@@ -80,7 +84,10 @@ def main(
         )
         imageio.write(moon_registered_dir / filename, moon_registered_img, moon_header, format=output_format)
         imageio.write(sun_registered_dir / filename, sun_registered_img, sun_header, format=output_format)
+        records.append(plots.FrameRecord.from_frame(filename, header, moon_center, moon_radius, rotation, sun_moon_translation, is_anchor=True, is_reference=(filename == ref_filename)))
         cprint(f"Anchor image {filename} registered successfully ({i+1}/{len(anchor_filenames)}).", color='green')
+
+    plots.emit(records, radius_bounds)
 
     ### Register remaining images through moon detection + timestamp-based interpolation of anchor values
     if len(remaining_filenames) > 0:
@@ -105,6 +112,8 @@ def main(
             )
             imageio.write(moon_registered_dir / filename, moon_registered_img, moon_header, format=output_format)
             imageio.write(sun_registered_dir / filename, sun_registered_img, sun_header, format=output_format)
+            records.append(plots.FrameRecord.from_frame(filename, header, moon_center, moon_radius, rotation, sun_moon_translation, is_anchor=False, is_reference=False))
+            plots.emit(records, radius_bounds)
             cprint(f"Image {filename} registered successfully ({i+1}/{len(remaining_filenames)}).", color='green')
     cprint(f"Registration completed successfully.", style='bold', color='green')
 
