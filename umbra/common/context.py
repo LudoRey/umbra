@@ -1,10 +1,11 @@
 """Ambient per-task context for the processing pipeline.
 
 Pipeline code reads its progress handlers from here: ``checkstate`` (yields to
-the runner to pause/abort) and the ``image`` sink (intermediate images for
-display). A runner (the GUI ``Task``) binds real handlers for the duration of a
-run via :func:`bind`; outside a run every handler is a no-op, so the pipeline
-works as a plain library (CLI, tests) with zero setup.
+the runner to pause/abort), the ``image`` sink (intermediate images for
+display) and the ``plot`` sink (matplotlib figures for display). A runner (the
+GUI ``Task``) binds real handlers for the duration of a run via :func:`bind`;
+outside a run every handler is a no-op, so the pipeline works as a plain
+library (CLI, tests) with zero setup.
 
 Handlers are stored in thread-local state: each task runs on its own worker
 thread, so concurrent tasks never clobber each other.
@@ -23,6 +24,7 @@ class _Context(threading.local):
     def __init__(self):
         self.checkstate = _noop
         self.image = _noop
+        self.plot = _noop
 
 
 _ctx = _Context()
@@ -39,19 +41,30 @@ def emit_image(img) -> None:
     _ctx.image(img)
 
 
+def emit_plot(fig, label: str) -> None:
+    """Hand a matplotlib figure to the runner for display under ``label``.
+
+    Build ``fig`` with the object API (``matplotlib.figure.Figure``), never
+    ``pyplot``: the pipeline runs on worker threads and pyplot is not thread
+    safe. Call once per figure; the runner shows each as a new page.
+    """
+    _ctx.plot(fig, label)
+
+
 # --- runner-facing API: bind handlers for one run ---
 @contextmanager
-def bind(*, checkstate=None, image=None):
+def bind(*, checkstate=None, image=None, plot=None):
     """Bind handlers for the duration of a ``with`` block, restoring them after.
 
     Overwrites every slot on entry (so a handler left over from a previous task
     on a reused worker thread cannot bleed through) and restores the previous
     handlers on exit.
     """
-    prev = (_ctx.checkstate, _ctx.image)
+    prev = (_ctx.checkstate, _ctx.image, _ctx.plot)
     _ctx.checkstate = checkstate or _noop
     _ctx.image = image or _noop
+    _ctx.plot = plot or _noop
     try:
         yield
     finally:
-        _ctx.checkstate, _ctx.image = prev
+        _ctx.checkstate, _ctx.image, _ctx.plot = prev
