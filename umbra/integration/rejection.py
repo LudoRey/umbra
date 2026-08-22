@@ -17,7 +17,7 @@ def outlier_rejection(
     Parameters
     ----------
     stack : np.ndarray
-        Array of shape (N, H, W, C) representing the image stack. May contain NaNs.
+        Array of shape (N, H, W) or (N, H, W, C) representing the image stack. May contain NaNs.
     outlier_threshold : float
         Threshold in units of standard deviation for clipping.
 
@@ -59,7 +59,7 @@ def moon_rejection(
     Parameters
     ----------
     stack : np.ndarray
-        Array of shape (N, H, W, C) representing the image stack.
+        Array of shape (N, H, W) or (N, H, W, C) representing the image stack.
     headers : list of dict
         List of FITS headers corresponding to each image in the stack. Each header must contain the keywords "MOON-X", "MOON-Y", and "MOON-R".
     extra_radius_pixels : float
@@ -90,7 +90,9 @@ def moon_rejection(
     # Ensure no pixel has all weights zero by assigning weight 1 to the brightest image,
     # i.e. the one where the moon occludes the pixel the least
     rows, cols = np.nonzero(np.all(weights == 0, axis=0)) # coordinates of the P all-zero pixels
-    values = stack[:, rows, cols].max(axis=-1) # (N, P), channels collapsed since the weights are per-pixel
+    values = stack[:, rows, cols] # (N, P) for a mono stack, (N, P, C) otherwise
+    if values.ndim == 3:
+        values = values.max(axis=-1) # channels collapsed since the weights are per-pixel
     weights[values.argmax(axis=0), rows, cols] = 1.0
     # Set fully rejected pixels to NaN in the stack
     mask = weights == 0

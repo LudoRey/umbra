@@ -1,6 +1,6 @@
 import numpy as np
 
-from umbra.common import coords, disk
+from umbra.common import channels, coords, disk
 
 
 def merge(
@@ -22,7 +22,7 @@ def merge(
     Parameters
     ----------
     sun_img, moon_img : np.ndarray
-        Stacks of shape (H, W, C), sun-registered and moon-registered respectively.
+        Stacks of shape (H, W) or (H, W, C), sun-registered and moon-registered respectively.
     center : np.ndarray
         The (x, y) position of the moon in the moon-registered stack.
     radius : float
@@ -34,7 +34,7 @@ def merge(
     Returns
     -------
     merged_img : np.ndarray
-        The merged stack, of shape (H, W, C).
+        The merged stack, of the same shape as the inputs.
 
     Notes
     ------
@@ -42,9 +42,11 @@ def merge(
     stacks disagree: a hard switch would ring wherever the minimum picks the other side.
     """
     region = coords.Region.from_shape(sun_img.shape[:2])
-    moon_weights = disk.smooth_disk(center, radius - blend_smoothness, region, blend_smoothness)
-    moon_or_min_weights = disk.smooth_disk(center, radius, region, blend_smoothness)
+    moon_disk = disk.smooth_disk(center, radius - blend_smoothness, region, blend_smoothness)
+    moon_or_min_disk = disk.smooth_disk(center, radius, region, blend_smoothness)
+    moon_weights = channels.broadcast_over_channels(moon_disk, sun_img)
+    moon_or_min_weights = channels.broadcast_over_channels(moon_or_min_disk, sun_img)
     min_weights = moon_or_min_weights - moon_weights
-    return (moon_weights[:, :, None] * moon_img
-            + min_weights[:, :, None] * np.minimum(moon_img, sun_img)
-            + (1 - moon_or_min_weights)[:, :, None] * sun_img)
+    return (moon_weights * moon_img
+            + min_weights * np.minimum(moon_img, sun_img)
+            + (1 - moon_or_min_weights) * sun_img)

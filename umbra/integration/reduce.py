@@ -15,16 +15,21 @@ def weighted_average_ignore_nan(
     Parameters
     ----------
     stack : np.ndarray
-        Array of shape (N, H, W, C) representing the stack of images.
+        Array of shape (N, H, W) or (N, H, W, C) representing the stack of images.
     weights : np.ndarray
         Array of shape (N, H, W) representing the weights for each pixel in the stack.
     out_img : np.ndarray
-        Output, modified in-place. Array of shape (H, W, C) representing the weighted average image.
+        Output, modified in-place. Array of shape (H, W) or (H, W, C) representing the weighted average image.
     out_total_weights : np.ndarray
-        Output, modified in-place. Array of shape (H, W, C) representing the average weights used per pixel.
+        Output, modified in-place. Array of shape (H, W) or (H, W, C) representing the average weights used per pixel.
     """
     print("Computing weighted average...", end=" ", flush=True)
-    N, H, W, C = stack.shape
+    N = stack.shape[0]
+    if stack.ndim == 3:
+        # A mono frame is one channel that carries no axis of its own. These are views, so the
+        # loop below still writes through to the caller's arrays.
+        stack, out_img, out_total_weights = stack[..., None], out_img[..., None], out_total_weights[..., None]
+    C = stack.shape[3]
     mask = np.isnan(stack)
     stack[mask] = 0
     weights_c = weights.copy()
@@ -48,11 +53,11 @@ def average_ignore_nan(
     Parameters
     ----------
     stack : np.ndarray
-        Array of shape (N, H, W, C) representing the stack of images.
+        Array of shape (N, H, W) or (N, H, W, C) representing the stack of images.
     out_img : np.ndarray
-        Output, modified in-place. Array of shape (H, W, C) representing the average image.
+        Output, modified in-place. Array of shape (H, W) or (H, W, C) representing the average image.
     out_total_weights : np.ndarray
-        Output, modified in-place. Array of shape (H, W, C) holding the fraction of non-NaN
+        Output, modified in-place. Array of shape (H, W) or (H, W, C) holding the fraction of non-NaN
         (i.e. non-rejected) frames per pixel, in [0, 1]. This doubles as a rejection map.
     """
     print("Computing average...", end=" ", flush=True)
