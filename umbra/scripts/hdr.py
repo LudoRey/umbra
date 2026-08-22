@@ -4,7 +4,7 @@ from typing import cast
 
 import numpy as np
 
-from umbra.common import context, coords, fits, imageio
+from umbra.common import channels, context, coords, fits, imageio
 from umbra.common.disk import binary_disk
 from umbra.common.polar import angle_map, radius_map
 from umbra.common.terminal import cprint
@@ -55,9 +55,6 @@ def main(
     headers = [filepath_to_header[filepath] for filepath in filepaths]
 
     shape = fits.extract_shape(headers[0])
-    if len(shape) != 3:
-        raise ValueError(f"HDR composition expects colour stacks, got an image of shape {shape} in {stacks_dir}.")
-
     geometry = io.read_moon_geometry(headers, stacks_dir)
     exposure_times = io.read_exposure_times(headers, filepaths)
 
@@ -118,7 +115,7 @@ def main(
             cprint("Brightness equalized.")
             context.checkstate()
 
-        hdr_img += weights[:, :, None] * img_x
+        hdr_img += channels.broadcast_over_channels(weights, img_x) * img_x
         sum_weights += weights
         context.emit_image(weighting.running_composite(hdr_img, sum_weights))
         cprint(f"Composited {filepath.name} ({index + 1}/{num_stacks}).", color="green")
@@ -132,7 +129,7 @@ def main(
             f"{uncovered} pixels fall outside the usable range of every stack: saturated in the longer "
             "exposures and below the noise floor in the shorter ones. Widen the gap between the weighting "
             "thresholds, or shoot an intermediate exposure.")
-    hdr_img /= sum_weights[:, :, None]
+    hdr_img /= channels.broadcast_over_channels(sum_weights, hdr_img)
 
     # Fitting onto the longest exposure's scale pushes the inner corona well past 1, so the
     # composite is rescaled to [0,1]

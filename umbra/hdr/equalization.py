@@ -1,6 +1,8 @@
 """Fitting one stack onto the brightness scale of another, as a function of the angle around the moon."""
 import numpy as np
 
+from umbra.common import channels
+
 # The moon drifts over totality in the sun-registered images the stacks come from. Inflating its
 # radius by this much covers every position it took, so the fit never sees a pixel it passed over.
 MOON_RADIUS_FACTOR = 1.15
@@ -95,7 +97,9 @@ def equalize_brightness(img_x: np.ndarray, img_theta: np.ndarray, img_radius: np
     To avoid the discontinuity at the center, its angular variation fades to zero from the limb inwards.
     """
     rows, cols = sample_polar(mask, center, num_samples)
-    sample_x, sample_y = img_x[rows, cols].mean(axis=1), img_y[rows, cols].mean(axis=1)
+    sample_x, sample_y = img_x[rows, cols], img_y[rows, cols]
+    if sample_x.ndim == 2:
+        sample_x, sample_y = sample_x.mean(axis=1), sample_y.mean(axis=1)
 
     # Every angle is fitted at once, through the interactions of x with the trigonometric basis.
     offset_trigo_coeffs, slope_trigo_coeffs = linear_trigo_fit(sample_x, img_theta[rows, cols], sample_y, degree)
@@ -103,6 +107,6 @@ def equalize_brightness(img_x: np.ndarray, img_theta: np.ndarray, img_radius: np
     img_damping = np.clip(img_radius / moon_radius, 0, 1)
     img_offset, img_slope = build_affine_map(img_theta, img_damping, offset_trigo_coeffs, slope_trigo_coeffs)
 
-    equalized = img_slope[:,:,None] * img_x
-    equalized += img_offset[:,:,None]
+    equalized = channels.broadcast_over_channels(img_slope, img_x) * img_x
+    equalized += channels.broadcast_over_channels(img_offset, img_x)
     return equalized
