@@ -38,7 +38,7 @@ def detect_moon(
     img: np.ndarray,
     num_edge_pixels: float,
     image_scale: float,
-) -> tuple[np.ndarray, float]:
+) -> tuple[np.ndarray, float, float]:
     # Compute image gradient (edges)
     print(f"Computing edge map...", end=" ", flush=True)
     edge_map = compute_canny_edge_map(img, num_edge_pixels)
@@ -55,13 +55,14 @@ def detect_moon(
     (moon_y, moon_x, moon_radius), inliers_coords, outliers_coords = ransac_circle_fit(edge_coords, min_samples)
     context.checkstate()
     context.emit_image(make_ransac_img(img, inliers_coords, outliers_coords))
-    print(f"Found {len(inliers_coords)} inliers.")
+    inlier_fraction = len(inliers_coords) / len(edge_coords)
+    print(f"Found {len(inliers_coords)} inliers ({inlier_fraction:.0%} of edge pixels).")
     print("Circle parameters:")
     print(f"- Center: ({moon_x:.2f}, {moon_y:.2f})")
     print(f"- Radius: {moon_radius:.2f}")
     validate_radius(float(moon_radius), image_scale)
 
-    return np.array([moon_x, moon_y]), float(moon_radius)
+    return np.array([moon_x, moon_y]), float(moon_radius), inlier_fraction
 
 def degree_to_pixels(angle: float, image_scale: float) -> float:
     '''Convert an angle in degrees to a length in pixels, for an image scale in arcseconds/pixel.'''

@@ -27,6 +27,7 @@ class FrameRecord:
     timestamp: float | None
     moon_center: np.ndarray             # [x, y] in pixels
     moon_radius: float
+    inlier_fraction: float              # RANSAC inliers over detected edge pixels
     rotation: float                     # radians
     sun_moon_translation: np.ndarray    # [x, y] in pixels
     is_anchor: bool
@@ -34,7 +35,7 @@ class FrameRecord:
 
     @classmethod
     def from_frame(
-        cls, filename, header, moon_center, moon_radius,
+        cls, filename, header, moon_center, moon_radius, inlier_fraction,
         rotation, sun_moon_translation, is_anchor, is_reference,
     ) -> "FrameRecord":
         try:
@@ -42,7 +43,7 @@ class FrameRecord:
         except ValueError:
             timestamp = None
         return cls(
-            filename, timestamp, moon_center, moon_radius,
+            filename, timestamp, moon_center, moon_radius, inlier_fraction,
             rotation, sun_moon_translation, is_anchor, is_reference,
         )
 
@@ -80,25 +81,30 @@ def _x_of(records: Sequence[FrameRecord], all_records: Sequence[FrameRecord]) ->
 
 
 def moon_detection_figure(records: Sequence[FrameRecord], radius_bounds: tuple[float, float]) -> Figure:
-    """Detected moon radius and centre (x, y) against time, one marker per frame.
+    """Detected moon radius, centre (x, y) and RANSAC inlier fraction against time,
+    one marker per frame.
 
     ``radius_bounds`` is the plausible-radius acceptance range, drawn as bounds.
     """
     records = _sorted(records)
     x, xlabel = _x_of(records, records)
 
-    fig = Figure(figsize=(7, 7), layout="constrained")
-    ax_radius, ax_x, ax_y = fig.subplots(3, 1, sharex=True)
+    fig = Figure(figsize=(7, 9), layout="constrained")
+    ax_radius, ax_x, ax_y, ax_inliers = fig.subplots(4, 1, sharex=True)
     lower, upper = radius_bounds
     ax_radius.axhline(lower, color="red", linestyle="--", linewidth=1, zorder=0)
     ax_radius.axhline(upper, color="red", linestyle="--", linewidth=1, zorder=0)
     _scatter_by_kind(ax_radius, records, x, [r.moon_radius for r in records])
     _scatter_by_kind(ax_x, records, x, [r.moon_center[0] for r in records])
     _scatter_by_kind(ax_y, records, x, [r.moon_center[1] for r in records])
+    _scatter_by_kind(ax_inliers, records, x, [r.inlier_fraction for r in records])
     ax_radius.set_ylabel("radius (px)")
     ax_x.set_ylabel("center x (px)")
     ax_y.set_ylabel("center y (px)")
-    ax_y.set_xlabel(xlabel)
+    # A proportion is only readable against its full range, so never autoscale it.
+    ax_inliers.set_ylim(0, 1)
+    ax_inliers.set_ylabel("inlier fraction")
+    ax_inliers.set_xlabel(xlabel)
     bound_handle = Line2D([], [], color="red", linestyle="--", linewidth=1, label="plausible range")
     ax_radius.legend(handles=_kind_handles(records, {}) + [bound_handle], loc="best", fontsize="small")
     fig.suptitle("Moon detection")

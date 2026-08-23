@@ -94,11 +94,11 @@ def preprocess_and_detect_moon(
     num_clipped_pixels: float,
     num_edge_pixels: float,
     image_scale: float,
-) -> tuple[np.ndarray, np.ndarray, float]:
-    """Preprocess an image and detect the moon, returning (preprocessed_img, moon_center, moon_radius)."""
+) -> tuple[np.ndarray, np.ndarray, float, float]:
+    """Preprocess an image and detect the moon, returning (preprocessed_img, moon_center, moon_radius, inlier_fraction)."""
     img = registration.moon.preprocess(img, num_clipped_pixels)
-    moon_center, moon_radius = registration.moon.detect_moon(img, num_edge_pixels, image_scale)
-    return img, moon_center, moon_radius
+    moon_center, moon_radius, inlier_fraction = registration.moon.detect_moon(img, num_edge_pixels, image_scale)
+    return img, moon_center, moon_radius, inlier_fraction
 
 
 def process_anchors(
@@ -109,16 +109,17 @@ def process_anchors(
     image_scale: float,
     sigma_high_pass_tangential: float,
     max_iter: int,
-) -> tuple[list[astropy.io.fits.Header], list[np.ndarray], list[float], list[sk.transform.EuclideanTransform], list[sk.transform.EuclideanTransform]]:
+) -> tuple[list[astropy.io.fits.Header], list[np.ndarray], list[float], list[float], list[sk.transform.EuclideanTransform], list[sk.transform.EuclideanTransform]]:
     """Load anchors, detect moon, and sun-align images.
 
     Processes anchors one at a time to avoid storing all preprocessed images simultaneously.
-    Returns (anchor_headers, moon_centers, moon_radii, sun_tforms_from_first_anchor, moon_tforms_from_first_anchor).
+    Returns (anchor_headers, moon_centers, moon_radii, inlier_fractions, sun_tforms_from_first_anchor, moon_tforms_from_first_anchor).
     Both transform families have length N and are expressed in the first anchor frame; index i maps anchor[0] -> anchor[i].
     """
     anchor_headers: list[astropy.io.fits.Header] = []
     moon_centers: list[np.ndarray] = []
     moon_radii: list[float] = []
+    inlier_fractions: list[float] = []
     sun_tforms_pairwise: list[sk.transform.EuclideanTransform] = []
 
     prev_preprocessed_img: np.ndarray | None = None
@@ -127,7 +128,7 @@ def process_anchors(
     for i, filename in enumerate(anchor_filenames):
         cprint(f"Processing anchor image {filename} ({i+1}/{len(anchor_filenames)}):", style='bold', color='cyan')
         img, header = imageio.read(fits_dir / filename)
-        img, moon_center, moon_radius = preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, image_scale)
+        img, moon_center, moon_radius, inlier_fraction = preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, image_scale)
         preprocessed_img, mass_center = registration.sun.preprocess(img, moon_center, moon_radius, sigma_high_pass_tangential)
         cprint(f"Anchor image {filename} processed successfully ({i+1}/{len(anchor_filenames)}).", color='green')
 
@@ -143,6 +144,7 @@ def process_anchors(
         anchor_headers.append(header)
         moon_centers.append(moon_center)
         moon_radii.append(moon_radius)
+        inlier_fractions.append(inlier_fraction)
 
         prev_preprocessed_img = preprocessed_img
         prev_mass_center = mass_center
@@ -162,7 +164,7 @@ def process_anchors(
         for moon_center, t in zip(moon_centers, sun_tforms_from_first_anchor)
     ]
 
-    return anchor_headers, moon_centers, moon_radii, sun_tforms_from_first_anchor, moon_tforms_from_first_anchor
+    return anchor_headers, moon_centers, moon_radii, inlier_fractions, sun_tforms_from_first_anchor, moon_tforms_from_first_anchor
 
 def rebase_transforms_to_ref(
     tform_from_first_anchor_to_ref: sk.transform.EuclideanTransform,
