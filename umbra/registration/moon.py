@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import cast
 
 import numpy as np
@@ -14,6 +15,14 @@ from umbra.common.terminal import cprint
 # smallest apparent solar radius, below which the eclipse could not be total.
 MIN_RADIUS_DEGREE = 0.262
 MAX_RADIUS_DEGREE = 0.279
+
+
+@dataclass
+class Detection:
+    """Moon geometry recovered from one frame by :func:`detect_moon`."""
+    center: np.ndarray      # [x, y] in pixels
+    radius: float           # radius of the fitted circle, in pixels
+    inlier_fraction: float  # RANSAC inliers over detected edge pixels
 
 
 def preprocess(
@@ -38,7 +47,7 @@ def detect_moon(
     img: np.ndarray,
     num_edge_pixels: float,
     image_scale: float,
-) -> tuple[np.ndarray, float, float]:
+) -> Detection:
     # Compute image gradient (edges)
     print(f"Computing edge map...", end=" ", flush=True)
     edge_map = compute_canny_edge_map(img, num_edge_pixels)
@@ -62,7 +71,7 @@ def detect_moon(
     print(f"- Radius: {moon_radius:.2f}")
     validate_radius(float(moon_radius), image_scale)
 
-    return np.array([moon_x, moon_y]), float(moon_radius), inlier_fraction
+    return Detection(np.array([moon_x, moon_y]), float(moon_radius), inlier_fraction)
 
 def degree_to_pixels(angle: float, image_scale: float) -> float:
     '''Convert an angle in degrees to a length in pixels, for an image scale in arcseconds/pixel.'''

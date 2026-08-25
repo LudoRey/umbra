@@ -14,6 +14,7 @@ from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
 from umbra.common import context, fits
+from umbra.registration import moon
 
 
 @dataclass
@@ -25,9 +26,7 @@ class FrameRecord:
     """
     filename: str
     timestamp: float | None
-    moon_center: np.ndarray             # [x, y] in pixels
-    moon_radius: float
-    inlier_fraction: float              # RANSAC inliers over detected edge pixels
+    moon_detection: moon.Detection
     rotation: float                     # radians
     sun_moon_translation: np.ndarray    # [x, y] in pixels
     is_anchor: bool
@@ -35,7 +34,7 @@ class FrameRecord:
 
     @classmethod
     def from_frame(
-        cls, filename, header, moon_center, moon_radius, inlier_fraction,
+        cls, filename, header, moon_detection,
         rotation, sun_moon_translation, is_anchor, is_reference,
     ) -> "FrameRecord":
         try:
@@ -43,7 +42,7 @@ class FrameRecord:
         except ValueError:
             timestamp = None
         return cls(
-            filename, timestamp, moon_center, moon_radius, inlier_fraction,
+            filename, timestamp, moon_detection,
             rotation, sun_moon_translation, is_anchor, is_reference,
         )
 
@@ -94,10 +93,10 @@ def moon_detection_figure(records: Sequence[FrameRecord], radius_bounds: tuple[f
     lower, upper = radius_bounds
     ax_radius.axhline(lower, color="red", linestyle="--", linewidth=1, zorder=0)
     ax_radius.axhline(upper, color="red", linestyle="--", linewidth=1, zorder=0)
-    _scatter_by_kind(ax_radius, records, x, [r.moon_radius for r in records])
-    _scatter_by_kind(ax_x, records, x, [r.moon_center[0] for r in records])
-    _scatter_by_kind(ax_y, records, x, [r.moon_center[1] for r in records])
-    _scatter_by_kind(ax_inliers, records, x, [r.inlier_fraction for r in records])
+    _scatter_by_kind(ax_radius, records, x, [r.moon_detection.radius for r in records])
+    _scatter_by_kind(ax_x, records, x, [r.moon_detection.center[0] for r in records])
+    _scatter_by_kind(ax_y, records, x, [r.moon_detection.center[1] for r in records])
+    _scatter_by_kind(ax_inliers, records, x, [r.moon_detection.inlier_fraction for r in records])
     ax_radius.set_ylabel("radius (px)")
     ax_x.set_ylabel("center x (px)")
     ax_y.set_ylabel("center y (px)")

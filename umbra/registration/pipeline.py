@@ -94,11 +94,10 @@ def preprocess_and_detect_moon(
     num_clipped_pixels: float,
     num_edge_pixels: float,
     image_scale: float,
-) -> tuple[np.ndarray, np.ndarray, float, float]:
-    """Preprocess an image and detect the moon, returning (preprocessed_img, moon_center, moon_radius, inlier_fraction)."""
+) -> tuple[np.ndarray, registration.moon.Detection]:
+    """Preprocess an image and detect the moon, returning (preprocessed_img, moon_detection)."""
     img = registration.moon.preprocess(img, num_clipped_pixels)
-    moon_center, moon_radius, inlier_fraction = registration.moon.detect_moon(img, num_edge_pixels, image_scale)
-    return img, moon_center, moon_radius, inlier_fraction
+    return img, registration.moon.detect_moon(img, num_edge_pixels, image_scale)
 
 
 def process_anchors(
@@ -109,17 +108,15 @@ def process_anchors(
     image_scale: float,
     sigma_high_pass_tangential: float,
     max_iter: int,
-) -> tuple[list[astropy.io.fits.Header], list[np.ndarray], list[float], list[float], list[sk.transform.EuclideanTransform], list[sk.transform.EuclideanTransform]]:
+) -> tuple[list[astropy.io.fits.Header], list[registration.moon.Detection], list[sk.transform.EuclideanTransform], list[sk.transform.EuclideanTransform]]:
     """Load anchors, detect moon, and sun-align images.
 
     Processes anchors one at a time to avoid storing all preprocessed images simultaneously.
-    Returns (anchor_headers, moon_centers, moon_radii, inlier_fractions, sun_tforms_from_first_anchor, moon_tforms_from_first_anchor).
+    Returns (anchor_headers, moon_detections, sun_tforms_from_first_anchor, moon_tforms_from_first_anchor).
     Both transform families have length N and are expressed in the first anchor frame; index i maps anchor[0] -> anchor[i].
     """
     anchor_headers: list[astropy.io.fits.Header] = []
-    moon_centers: list[np.ndarray] = []
-    moon_radii: list[float] = []
-    inlier_fractions: list[float] = []
+    moon_detections: list[registration.moon.Detection] = []
     sun_tforms_pairwise: list[sk.transform.EuclideanTransform] = []
 
     prev_preprocessed_img: np.ndarray | None = None
@@ -128,8 +125,8 @@ def process_anchors(
     for i, filename in enumerate(anchor_filenames):
         cprint(f"Processing anchor image {filename} ({i+1}/{len(anchor_filenames)}):", style='bold', color='cyan')
         img, header = imageio.read(fits_dir / filename)
-        img, moon_center, moon_radius, inlier_fraction = preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, image_scale)
-        preprocessed_img, mass_center = registration.sun.preprocess(img, moon_center, moon_radius, sigma_high_pass_tangential)
+        img, moon_detection = preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, image_scale)
+        preprocessed_img, mass_center = registration.sun.preprocess(img, moon_detection.center, moon_detection.radius, sigma_high_pass_tangential)
         cprint(f"Anchor image {filename} processed successfully ({i+1}/{len(anchor_filenames)}).", color='green')
 
         if prev_preprocessed_img is not None and prev_mass_center is not None:
@@ -142,9 +139,7 @@ def process_anchors(
             cprint(f"Anchor transform {i} -> {i+1} computed successfully.", color='green')
 
         anchor_headers.append(header)
-        moon_centers.append(moon_center)
-        moon_radii.append(moon_radius)
-        inlier_fractions.append(inlier_fraction)
+        moon_detections.append(moon_detection)
 
         prev_preprocessed_img = preprocessed_img
         prev_mass_center = mass_center
@@ -158,13 +153,13 @@ def process_anchors(
         )
     # Recreate each anchor's moon registration transform in the first anchor frame: rotate around
     # the first anchor's moon by the sun rotation, then shift its moon onto anchor[i]'s.
-    first_anchor_moon_center = moon_centers[0]
+    first_anchor_moon_center = moon_detections[0].center
     moon_tforms_from_first_anchor = [
-        transform.centered_rigid_transform(first_anchor_moon_center, float(t.rotation), moon_center - first_anchor_moon_center)
-        for moon_center, t in zip(moon_centers, sun_tforms_from_first_anchor)
+        transform.centered_rigid_transform(first_anchor_moon_center, float(t.rotation), moon_detection.center - first_anchor_moon_center)
+        for moon_detection, t in zip(moon_detections, sun_tforms_from_first_anchor)
     ]
 
-    return anchor_headers, moon_centers, moon_radii, inlier_fractions, sun_tforms_from_first_anchor, moon_tforms_from_first_anchor
+    return anchor_headers, moon_detections, sun_tforms_from_first_anchor, moon_tforms_from_first_anchor
 
 def rebase_transforms_to_ref(
     tform_from_first_anchor_to_ref: sk.transform.EuclideanTransform,
@@ -250,24 +245,23 @@ def interpolate_transforms_to_ref(
 
 def update_headers(
     header: astropy.io.fits.Header,
-    moon_center: np.ndarray,
-    moon_radius: float,
+    moon_detection: registration.moon.Detection,
     moon_tform: sk.transform.EuclideanTransform | None = None,
     sun_tform: sk.transform.EuclideanTransform | None = None,
 ) -> tuple[astropy.io.fits.Header, astropy.io.fits.Header]:
     """Produce updated FITS headers for moon-registered and sun-registered images."""
+    moon_center = moon_detection.center
     sun_registered_moon_center = sun_tform.inverse(moon_center)[0] if sun_tform is not None else moon_center
     moon_registered_moon_center = moon_tform.inverse(moon_center)[0] if moon_tform is not None else moon_center
-    moon_header = fits.update(header, registration.moon.keyword_cards(moon_registered_moon_center, moon_radius))
-    sun_header = fits.update(header, registration.moon.keyword_cards(sun_registered_moon_center, moon_radius))
+    moon_header = fits.update(header, registration.moon.keyword_cards(moon_registered_moon_center, moon_detection.radius))
+    sun_header = fits.update(header, registration.moon.keyword_cards(sun_registered_moon_center, moon_detection.radius))
     return moon_header, sun_header
 
 
 def apply_transforms(
     img: np.ndarray,
     header: astropy.io.fits.Header,
-    moon_center: np.ndarray,
-    moon_radius: float,
+    moon_detection: registration.moon.Detection,
     moon_tform: sk.transform.EuclideanTransform,
     sun_tform: sk.transform.EuclideanTransform,
 ) -> tuple[np.ndarray, astropy.io.fits.Header, np.ndarray, astropy.io.fits.Header]:
@@ -277,5 +271,5 @@ def apply_transforms(
     """
     moon_registered_img = transform.warp(img, moon_tform.inverse.params)
     sun_registered_img = transform.warp(img, sun_tform.inverse.params)
-    moon_header, sun_header = update_headers(header, moon_center, moon_radius, moon_tform, sun_tform)
+    moon_header, sun_header = update_headers(header, moon_detection, moon_tform, sun_tform)
     return moon_registered_img, moon_header, sun_registered_img, sun_header

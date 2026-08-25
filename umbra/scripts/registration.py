@@ -36,7 +36,7 @@ def main(
     radius_bounds = moon.radius_bounds(image_scale)
 
     ### Process anchor images: compute moon/sun transforms (in first anchor frame) and other values
-    anchor_headers, moon_centers, moon_radii, inlier_fractions, sun_tforms_from_first_anchor, moon_tforms_from_first_anchor = pipeline.process_anchors(
+    anchor_headers, moon_detections, sun_tforms_from_first_anchor, moon_tforms_from_first_anchor = pipeline.process_anchors(
         anchor_filenames, fits_dir, num_clipped_pixels, num_edge_pixels, image_scale,
         sigma_high_pass_tangential, max_iter,
     )
@@ -45,20 +45,20 @@ def main(
     cprint(f"Processing reference image: {ref_filename}", style='bold', color='cyan')
     ref_img, ref_header = imageio.read(fits_dir / ref_filename)
     if ref_filename not in anchor_filenames:
-        _, ref_moon_center, ref_moon_radius, ref_inlier_fraction = pipeline.preprocess_and_detect_moon(ref_img, num_clipped_pixels, num_edge_pixels, image_scale)
-        records.append(plots.FrameRecord.from_frame(ref_filename, ref_header, ref_moon_center, ref_moon_radius, ref_inlier_fraction, 0.0, np.zeros(2), is_anchor=False, is_reference=True))
+        _, ref_moon_detection = pipeline.preprocess_and_detect_moon(ref_img, num_clipped_pixels, num_edge_pixels, image_scale)
+        records.append(plots.FrameRecord.from_frame(ref_filename, ref_header, ref_moon_detection, 0.0, np.zeros(2), is_anchor=False, is_reference=True))
         ref_timestamp = fits.extract_timestamp(ref_header)
         anchor_timestamps = [fits.extract_timestamp(header) for header in anchor_headers]
         moon_tform_from_first_anchor_to_ref, sun_tform_from_first_anchor_to_ref = pipeline.interpolate_transforms_to_ref(
-            sun_tforms_from_first_anchor, moon_tforms_from_first_anchor, moon_centers[0], anchor_timestamps, ref_moon_center, ref_timestamp,
+            sun_tforms_from_first_anchor, moon_tforms_from_first_anchor, moon_detections[0].center, anchor_timestamps, ref_moon_detection.center, ref_timestamp,
         )
     else:
         cprint(f"Reference image is also an anchor. Extracting precomputed values.")
         anchor_index = anchor_filenames.index(ref_filename)
-        ref_moon_center, ref_moon_radius = moon_centers[anchor_index], moon_radii[anchor_index]
+        ref_moon_detection = moon_detections[anchor_index]
         moon_tform_from_first_anchor_to_ref = moon_tforms_from_first_anchor[anchor_index]
         sun_tform_from_first_anchor_to_ref = sun_tforms_from_first_anchor[anchor_index]
-    ref_moon_header, ref_sun_header = pipeline.update_headers(ref_header, ref_moon_center, ref_moon_radius)
+    ref_moon_header, ref_sun_header = pipeline.update_headers(ref_header, ref_moon_detection)
     imageio.write(moon_registered_dir / ref_filename, ref_img, ref_moon_header, format=output_format)
     imageio.write(sun_registered_dir / ref_filename, ref_img, ref_sun_header, format=output_format)
     cprint(f"Reference image processed successfully.", color='green')
@@ -72,19 +72,19 @@ def main(
     for i, filename in enumerate(anchor_filenames):
         cprint(f"Registering anchor image {filename} ({i+1}/{len(anchor_filenames)}):", style='bold', color='cyan')
         img, header = imageio.read(fits_dir / filename)
-        moon_center, moon_radius, inlier_fraction = moon_centers[i], moon_radii[i], inlier_fractions[i]
+        moon_detection = moon_detections[i]
         cprint(f"Extracting anchor values:", style='bold')
         rotation, sun_moon_translation  = rotations[i], sun_moon_translations[i]
         print(f"- Rotation          : {np.rad2deg(rotation):>8.3f} deg")
         print(f"- Sun-moon delta (x): {sun_moon_translation[0]:>8.2f} px")
         print(f"- Sun-moon delta (y): {sun_moon_translation[1]:>8.2f} px")
-        moon_tform, sun_tform = pipeline.recreate_transforms(rotation, sun_moon_translation, ref_moon_center, moon_center)
+        moon_tform, sun_tform = pipeline.recreate_transforms(rotation, sun_moon_translation, ref_moon_detection.center, moon_detection.center)
         moon_registered_img, moon_header, sun_registered_img, sun_header = pipeline.apply_transforms(
-            img, header, moon_center, moon_radius, moon_tform, sun_tform,
+            img, header, moon_detection, moon_tform, sun_tform,
         )
         imageio.write(moon_registered_dir / filename, moon_registered_img, moon_header, format=output_format)
         imageio.write(sun_registered_dir / filename, sun_registered_img, sun_header, format=output_format)
-        records.append(plots.FrameRecord.from_frame(filename, header, moon_center, moon_radius, inlier_fraction, rotation, sun_moon_translation, is_anchor=True, is_reference=(filename == ref_filename)))
+        records.append(plots.FrameRecord.from_frame(filename, header, moon_detection, rotation, sun_moon_translation, is_anchor=True, is_reference=(filename == ref_filename)))
         cprint(f"Anchor image {filename} registered successfully ({i+1}/{len(anchor_filenames)}).", color='green')
 
     plots.emit(records, radius_bounds)
@@ -97,7 +97,7 @@ def main(
         for i, filename in enumerate(remaining_filenames):
             cprint(f"Registering non-anchor image {filename} ({i+1}/{len(remaining_filenames)}):", style='bold', color='cyan')
             img, header = imageio.read(fits_dir / filename)
-            _, moon_center, moon_radius, inlier_fraction = pipeline.preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, image_scale)
+            _, moon_detection = pipeline.preprocess_and_detect_moon(img, num_clipped_pixels, num_edge_pixels, image_scale)
             cprint(f"Interpolating:", style='bold')
             timestamp = fits.extract_timestamp(header)
             print(f"Time delta: {timestamp - ref_timestamp} sec")
@@ -106,13 +106,13 @@ def main(
             print(f"- Rotation          : {np.rad2deg(rotation):>8.3f} deg")
             print(f"- Sun-moon delta (x): {sun_moon_translation[0]:>8.2f} px")
             print(f"- Sun-moon delta (y): {sun_moon_translation[1]:>8.2f} px")
-            moon_tform, sun_tform = pipeline.recreate_transforms(rotation, sun_moon_translation, ref_moon_center, moon_center)
+            moon_tform, sun_tform = pipeline.recreate_transforms(rotation, sun_moon_translation, ref_moon_detection.center, moon_detection.center)
             moon_registered_img, moon_header, sun_registered_img, sun_header = pipeline.apply_transforms(
-                img, header, moon_center, moon_radius, moon_tform, sun_tform,
+                img, header, moon_detection, moon_tform, sun_tform,
             )
             imageio.write(moon_registered_dir / filename, moon_registered_img, moon_header, format=output_format)
             imageio.write(sun_registered_dir / filename, sun_registered_img, sun_header, format=output_format)
-            records.append(plots.FrameRecord.from_frame(filename, header, moon_center, moon_radius, inlier_fraction, rotation, sun_moon_translation, is_anchor=False, is_reference=False))
+            records.append(plots.FrameRecord.from_frame(filename, header, moon_detection, rotation, sun_moon_translation, is_anchor=False, is_reference=False))
             plots.emit(records, radius_bounds)
             cprint(f"Image {filename} registered successfully ({i+1}/{len(remaining_filenames)}).", color='green')
     cprint(f"Registration completed successfully.", style='bold', color='green')
