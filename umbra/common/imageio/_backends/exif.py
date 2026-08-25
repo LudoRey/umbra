@@ -90,7 +90,7 @@ def build_header_from_exif(metadata: dict[str, Any]) -> Header:
     _set_if_present(header, "ISOSPEED", metadata.get("EXIF ISOSpeedRatings") or metadata.get("EXIF PhotographicSensitivity"), "ISO speed")
     _set_if_present(header, "FOCALLEN", metadata.get("EXIF FocalLength"), "Focal length in mm")
     _set_if_present(header, "FNUMBER", metadata.get("EXIF FNumber"), "Lens F-number")
-    _set_if_present(header, "INSTRUME", _camera(metadata), "Camera model")
+    _set_if_present(header, "INSTRUME", metadata.get("Image Model"), "Camera model")
     header["ORIGIN"] = ("Umbra", "Software that created this file")
     return header
 
@@ -108,13 +108,3 @@ def _date_obs(metadata: dict[str, Any]) -> str | None:
     if len(text) >= 19 and text[10] == " ":
         return f"{text[0:10]}T{text[11:19]}"
     return text
-
-
-def _camera(metadata: dict[str, Any]) -> str | None:
-    make = metadata.get("Image Make")
-    model = metadata.get("Image Model")
-    if make and model:
-        return f"{make} {model}"[:68]
-    if model:
-        return str(model)[:68]
-    return None
