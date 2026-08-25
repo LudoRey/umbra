@@ -98,9 +98,13 @@ def moon_detection_figure(records: Sequence[FrameRecord], radius_bounds: tuple[f
     ax_radius.set_ylabel("radius (px)")
     ax_x.set_ylabel("center x (px)")
     ax_y.set_ylabel("center y (px)")
+    # A sub-pixel spread makes matplotlib factor out a common offset, so the two panels stop
+    # reading in the same units.
+    ax_x.ticklabel_format(axis="y", useOffset=False)
+    ax_y.ticklabel_format(axis="y", useOffset=False)
     ax_y.set_xlabel(xlabel)
     bound_handle = Line2D([], [], color="red", linestyle="--", linewidth=1, label="plausible range")
-    ax_radius.legend(handles=_kind_handles(records, {}) + [bound_handle], loc="best", fontsize="small")
+    ax_radius.legend(handles=_kind_handles(records, {}) + [bound_handle], loc="upper right", fontsize="small")
     fig.suptitle("Moon detection (1)")
     return fig
 
