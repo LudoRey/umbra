@@ -82,20 +82,19 @@ def degree_to_pixels(angle: float, image_scale: float) -> float:
     '''Convert an angle in degrees to a length in pixels, for an image scale in arcseconds/pixel.'''
     return angle * 3600 / image_scale
 
-def radius_bounds(image_scale: float, tolerance: float = 0.05) -> tuple[float, float]:
+def radius_bounds(image_scale: float) -> tuple[float, float]:
     '''Plausible detected-radius range in pixels (the acceptance range of :func:`validate_radius`).
 
     The Earth-moon distance is unknown, so any radius between MIN_RADIUS_DEGREE and
-    MAX_RADIUS_DEGREE is accepted. The tolerance widens that range on both ends, to absorb
-    image scale and detection inaccuracies.
+    MAX_RADIUS_DEGREE is accepted.
     '''
-    lower = (1 - tolerance) * degree_to_pixels(MIN_RADIUS_DEGREE, image_scale)
-    upper = (1 + tolerance) * degree_to_pixels(MAX_RADIUS_DEGREE, image_scale)
+    lower = degree_to_pixels(MIN_RADIUS_DEGREE, image_scale)
+    upper = degree_to_pixels(MAX_RADIUS_DEGREE, image_scale)
     return lower, upper
 
-def validate_radius(moon_radius: float, image_scale: float, tolerance: float = 0.05) -> None:
+def validate_radius(moon_radius: float, image_scale: float) -> None:
     '''Warn if the detected radius is implausible.'''
-    lower, upper = radius_bounds(image_scale, tolerance)
+    lower, upper = radius_bounds(image_scale)
     if not lower <= moon_radius <= upper:
         warnings.warn(
             f"Detected moon radius ({moon_radius:.2f} px) is outside the expected range "
