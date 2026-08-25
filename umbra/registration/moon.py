@@ -127,6 +127,29 @@ def compute_canny_edge_map(img: np.ndarray, num_edge_pixels: float) -> np.ndarra
     edge_map = cv2.Canny(sobel_x, sobel_y, float(threshold), float(threshold)) == 255
     return edge_map
 
+class RadialEllipseModel(sk.measure.EllipseModel):
+    '''An ellipse whose residuals are measured along the ray from its center.
+
+    The base class returns the orthogonal distance to the curve. That distance has no closed
+    form, so it is solved numerically one point at a time, which dominates the RANSAC loop.
+    The radial distance is a closed form and vectorizes.
+
+    The two differ by a factor cos(alpha), alpha being the angle between the ray and the
+    curve normal, which is bounded by tan(alpha) <= (a**2 - b**2) / (2ab) and vanishes at the
+    ends of both axes. At the 1% flattening of a moon low above the horizon that bounds the
+    difference at 5e-5 of the distance, far below the pixel grid the edge coordinates live
+    on. The radial distance is never the shorter of the two, so it can only shrink the
+    inlier set.
+    '''
+
+    def residuals(self, data: np.ndarray) -> np.ndarray:
+        xc, yc, semi_major, semi_minor, theta = self.params
+        x, y = data[:, 0] - xc, data[:, 1] - yc
+        # Polar equation of the ellipse, in the frame where its axes are the coordinate axes.
+        psi = np.arctan2(y, x) - theta
+        radius = semi_major * semi_minor / np.hypot(semi_minor * np.cos(psi), semi_major * np.sin(psi))
+        return np.abs(np.hypot(x, y) - radius)
+
 def ransac_ellipse_fit(
     coords: np.ndarray,
     min_samples: int = 5,
@@ -149,14 +172,14 @@ def ransac_ellipse_fit(
         warnings.simplefilter("ignore") # might throw warnings when the samples are degenerate
         model, inliers = sk.measure.ransac(
             coords,
-            sk.measure.EllipseModel,
+            RadialEllipseModel,
             min_samples=min_samples,
             residual_threshold=residual_threshold,
             max_trials=max_trials
         )
     if model is None or inliers is None:
         raise RuntimeError("RANSAC failed to fit an ellipse.")
-    model = cast(sk.measure.EllipseModel, model)
+    model = cast(RadialEllipseModel, model)
     inliers = cast(np.ndarray, inliers)
     inliers_coords = coords[inliers]
     outliers_coords = coords[~inliers]
