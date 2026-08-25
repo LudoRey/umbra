@@ -106,19 +106,25 @@ def moon_detection_figure(records: Sequence[FrameRecord], radius_bounds: tuple[f
 
 
 def detection_quality_figure(records: Sequence[FrameRecord]) -> Figure:
-    """RANSAC inlier fraction against time, one marker per frame: how much of the
-    detected edge the fitted circle explains."""
+    """Ellipse flattening and RANSAC inlier fraction against time, one marker per
+    frame. Both say how well the fitted ellipse describes the moon edge."""
     records = _sorted(records)
     x, xlabel = _x_of(records, records)
 
-    fig = Figure(figsize=(7, 3), layout="constrained")
-    ax_inliers = fig.subplots(1, 1)
+    fig = Figure(figsize=(7, 5), layout="constrained")
+    ax_flattening, ax_inliers = fig.subplots(2, 1, sharex=True)
+    flattening = [100 * r.moon_detection.flattening for r in records]
+    _scatter_by_kind(ax_flattening, records, x, flattening)
     _scatter_by_kind(ax_inliers, records, x, [100 * r.moon_detection.inlier_fraction for r in records])
+    # Keep 0 - a circular moon - in view. Fixing only the bottom leaves the top margin sized
+    # for the tight spread, which clips the markers; the headroom also clears the legend.
+    ax_flattening.set_ylim(0, 1.35 * max(flattening))
+    ax_flattening.set_ylabel("flattening (%)")
     # A proportion is only readable against its full range, so never autoscale it.
     ax_inliers.set_ylim(0, 100)
     ax_inliers.set_ylabel("inlier fraction (%)")
     ax_inliers.set_xlabel(xlabel)
-    ax_inliers.legend(handles=_kind_handles(records, {}), loc="best", fontsize="small")
+    ax_flattening.legend(handles=_kind_handles(records, {}), loc="upper right", fontsize="small")
     fig.suptitle("Moon detection (2)")
     return fig
 

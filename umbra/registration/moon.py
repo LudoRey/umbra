@@ -21,7 +21,8 @@ MAX_RADIUS_DEGREE = 0.279
 class Detection:
     """Moon geometry recovered from one frame by :func:`detect_moon`."""
     center: np.ndarray      # [x, y] in pixels
-    radius: float           # radius of the fitted circle, in pixels
+    radius: float           # semi-major axis of the fitted ellipse, in pixels
+    flattening: float       # 1 - semi_minor/semi_major of the fitted ellipse
     inlier_fraction: float  # RANSAC inliers over detected edge pixels
 
 
@@ -48,6 +49,7 @@ def detect_moon(
     num_edge_pixels: float,
     image_scale: float,
 ) -> Detection:
+    '''Fit an ellipse to the moon edge.'''
     # Compute image gradient (edges)
     print(f"Computing edge map...", end=" ", flush=True)
     edge_map = compute_canny_edge_map(img, num_edge_pixels)
@@ -58,20 +60,23 @@ def detect_moon(
     # RANSAC fitting
     min_samples = 5
     if len(edge_coords) <= min_samples:
-        raise RuntimeError("Not enough edge pixels to fit a circle.")
+        raise RuntimeError("Not enough edge pixels to fit an ellipse.")
     cprint("Detecting moon:", style='bold')
-    print("RANSAC circle fitting...", end=" ", flush=True)
-    (moon_y, moon_x, moon_radius), inliers_coords, outliers_coords = ransac_circle_fit(edge_coords, min_samples)
+    print("RANSAC fitting...", end=" ", flush=True)
+    (moon_y, moon_x, semi_major, semi_minor, _), inliers_coords, outliers_coords = ransac_ellipse_fit(edge_coords, min_samples)
     context.checkstate()
     context.emit_image(make_ransac_img(img, inliers_coords, outliers_coords))
     inlier_fraction = len(inliers_coords) / len(edge_coords)
+    moon_radius = float(semi_major)
+    flattening = 1 - float(semi_minor) / moon_radius
     print(f"Found {len(inliers_coords)} inliers ({inlier_fraction:.0%} of edge pixels).")
-    print("Circle parameters:")
+    print("Detected moon:")
     print(f"- Center: ({moon_x:.2f}, {moon_y:.2f})")
     print(f"- Radius: {moon_radius:.2f}")
-    validate_radius(float(moon_radius), image_scale)
+    print(f"- Flattening: {flattening:.4f}")
+    validate_radius(moon_radius, image_scale)
 
-    return Detection(np.array([moon_x, moon_y]), float(moon_radius), inlier_fraction)
+    return Detection(np.array([moon_x, moon_y]), moon_radius, flattening, inlier_fraction)
 
 def degree_to_pixels(angle: float, image_scale: float) -> float:
     '''Convert an angle in degrees to a length in pixels, for an image scale in arcseconds/pixel.'''
@@ -122,31 +127,36 @@ def compute_canny_edge_map(img: np.ndarray, num_edge_pixels: float) -> np.ndarra
     edge_map = cv2.Canny(sobel_x, sobel_y, float(threshold), float(threshold)) == 255
     return edge_map
 
-def ransac_circle_fit(
+def ransac_ellipse_fit(
     coords: np.ndarray,
     min_samples: int = 5,
     residual_threshold: float = 1,
     max_trials: int = 10000,
-) -> tuple[tuple[float, float, float], np.ndarray, np.ndarray]:
+) -> tuple[tuple[float, float, float, float, float], np.ndarray, np.ndarray]:
     '''
+    The returned parameters are (yc, xc, semi_major, semi_minor, theta), mirroring the
+    (row, column) order of `coords`, with semi_major >= semi_minor.
+
     Parameters:
-    -min_samples: number of random samples used to estimate the model parameters at each iteration
-    -residual_threshold: inliers are such that |sqrt(x**2 + y**2) - r| < threshold. Might depend on pixel scale, but shouldnt really be lower than 1...
+    -min_samples: number of random samples used to estimate the model parameters at each iteration.
+     5 is the minimum needed to define an ellipse.
+    -residual_threshold: inliers are such that their distance to the ellipse is below the threshold.
+     Might depend on pixel scale, but shouldnt really be lower than 1...
     -max_trials: number of RANSAC trials
     '''
 
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore") # might throw warnings when the samples are colinear
+        warnings.simplefilter("ignore") # might throw warnings when the samples are degenerate
         model, inliers = sk.measure.ransac(
             coords,
-            sk.measure.CircleModel,
+            sk.measure.EllipseModel,
             min_samples=min_samples,
             residual_threshold=residual_threshold,
             max_trials=max_trials
         )
     if model is None or inliers is None:
-        raise RuntimeError("RANSAC failed to fit a circle.")
-    model = cast(sk.measure.CircleModel, model)
+        raise RuntimeError("RANSAC failed to fit an ellipse.")
+    model = cast(sk.measure.EllipseModel, model)
     inliers = cast(np.ndarray, inliers)
     inliers_coords = coords[inliers]
     outliers_coords = coords[~inliers]
