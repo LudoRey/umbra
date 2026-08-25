@@ -134,7 +134,11 @@ def detection_quality_figure(records: Sequence[FrameRecord]) -> Figure:
 
 
 def _scatter_by_kind(ax, records, x, y) -> None:
-    """Scatter ``x`` vs ``y`` (both aligned with ``records``), coloured by kind."""
+    """Scatter ``x`` vs ``y`` (both aligned with ``records``), coloured by kind.
+
+    Each collection carries its points' filenames in ``point_labels``, which a viewer can show on
+    hover (see ``umgui.components.plotviewer``).
+    """
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
     kinds = np.array([_kind(r) for r in records])
@@ -142,7 +146,8 @@ def _scatter_by_kind(ax, records, x, y) -> None:
     for kind, color in reversed(_COLOR.items()):
         mask = kinds == kind
         if mask.any():
-            ax.scatter(x[mask], y[mask], color=color, s=_DOT_SIZE, zorder=3)
+            collection = ax.scatter(x[mask], y[mask], color=color, s=_DOT_SIZE, zorder=3)
+            collection.point_labels = [r.filename for r, hit in zip(records, mask) if hit]
 
 
 def _kind_handles(records, labels: dict) -> list:
