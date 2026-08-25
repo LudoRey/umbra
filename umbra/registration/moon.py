@@ -94,10 +94,10 @@ def radius_bounds(image_scale: float, tolerance: float = 0.05) -> tuple[float, f
     return lower, upper
 
 def validate_radius(moon_radius: float, image_scale: float, tolerance: float = 0.05) -> None:
-    '''Raise if the detected radius is implausible.'''
+    '''Warn if the detected radius is implausible.'''
     lower, upper = radius_bounds(image_scale, tolerance)
     if not lower <= moon_radius <= upper:
-        raise RuntimeError(
+        warnings.warn(
             f"Detected moon radius ({moon_radius:.2f} px) is outside the expected range "
             f"({lower:.2f} - {upper:.2f} px): check the image scale and the moon detection parameters."
         )
