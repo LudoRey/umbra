@@ -80,33 +80,46 @@ def _x_of(records: Sequence[FrameRecord], all_records: Sequence[FrameRecord]) ->
 
 
 def moon_detection_figure(records: Sequence[FrameRecord], radius_bounds: tuple[float, float]) -> Figure:
-    """Detected moon radius, centre (x, y) and RANSAC inlier fraction against time,
-    one marker per frame.
+    """Detected moon radius and centre (x, y) against time, one marker per frame.
 
     ``radius_bounds`` is the plausible-radius acceptance range, drawn as bounds.
     """
     records = _sorted(records)
     x, xlabel = _x_of(records, records)
 
-    fig = Figure(figsize=(7, 9), layout="constrained")
-    ax_radius, ax_x, ax_y, ax_inliers = fig.subplots(4, 1, sharex=True)
+    fig = Figure(figsize=(7, 7), layout="constrained")
+    ax_radius, ax_x, ax_y = fig.subplots(3, 1, sharex=True)
     lower, upper = radius_bounds
     ax_radius.axhline(lower, color="red", linestyle="--", linewidth=1, zorder=0)
     ax_radius.axhline(upper, color="red", linestyle="--", linewidth=1, zorder=0)
     _scatter_by_kind(ax_radius, records, x, [r.moon_detection.radius for r in records])
     _scatter_by_kind(ax_x, records, x, [r.moon_detection.center[0] for r in records])
     _scatter_by_kind(ax_y, records, x, [r.moon_detection.center[1] for r in records])
-    _scatter_by_kind(ax_inliers, records, x, [r.moon_detection.inlier_fraction for r in records])
     ax_radius.set_ylabel("radius (px)")
     ax_x.set_ylabel("center x (px)")
     ax_y.set_ylabel("center y (px)")
-    # A proportion is only readable against its full range, so never autoscale it.
-    ax_inliers.set_ylim(0, 1)
-    ax_inliers.set_ylabel("inlier fraction")
-    ax_inliers.set_xlabel(xlabel)
+    ax_y.set_xlabel(xlabel)
     bound_handle = Line2D([], [], color="red", linestyle="--", linewidth=1, label="plausible range")
     ax_radius.legend(handles=_kind_handles(records, {}) + [bound_handle], loc="best", fontsize="small")
-    fig.suptitle("Moon detection")
+    fig.suptitle("Moon detection (1)")
+    return fig
+
+
+def detection_quality_figure(records: Sequence[FrameRecord]) -> Figure:
+    """RANSAC inlier fraction against time, one marker per frame: how much of the
+    detected edge the fitted circle explains."""
+    records = _sorted(records)
+    x, xlabel = _x_of(records, records)
+
+    fig = Figure(figsize=(7, 3), layout="constrained")
+    ax_inliers = fig.subplots(1, 1)
+    _scatter_by_kind(ax_inliers, records, x, [100 * r.moon_detection.inlier_fraction for r in records])
+    # A proportion is only readable against its full range, so never autoscale it.
+    ax_inliers.set_ylim(0, 100)
+    ax_inliers.set_ylabel("inlier fraction (%)")
+    ax_inliers.set_xlabel(xlabel)
+    ax_inliers.legend(handles=_kind_handles(records, {}), loc="best", fontsize="small")
+    fig.suptitle("Moon detection (2)")
     return fig
 
 
@@ -162,5 +175,6 @@ def anchor_values_figure(records: Sequence[FrameRecord]) -> Figure:
 
 def emit(records: Sequence[FrameRecord], radius_bounds: tuple[float, float]) -> None:
     """Emit the registration diagnostic figures to the runner, one per label."""
-    context.emit_plot(moon_detection_figure(records, radius_bounds), "Moon detection")
+    context.emit_plot(moon_detection_figure(records, radius_bounds), "Moon detection (1)")
+    context.emit_plot(detection_quality_figure(records), "Moon detection (2)")
     context.emit_plot(anchor_values_figure(records), "Anchor values")
