@@ -6,11 +6,13 @@ handles; consumers filter against these sets (e.g. ``imageio.extensions.FITS``).
 
 FITS = frozenset({".fits", ".fit"})
 
+# Restricted to formats whose metadata we know we can read: CR3, whose EXIF the exif
+# backend locates explicitly, and raws headed by a TIFF, whose EXIF exifread locates
+# unaided. Formats we could not confirm are left out rather than guessed at; add one
+# back once a sample shows its EXIF comes through.
 RAW = frozenset({
-    ".3fr", ".ari", ".arw", ".bay", ".braw", ".cr2", ".cr3", ".crw", ".dcr",
-    ".dng", ".erf", ".fff", ".iiq", ".k25", ".kdc", ".mef", ".mos", ".mrw",
-    ".nef", ".nrw", ".orf", ".pef", ".raf", ".raw", ".rw2", ".rwl", ".sr2",
-    ".srf", ".srw", ".x3f",
+    ".arw", ".cr2", ".cr3", ".dng", ".nef", ".nrw", ".orf", ".pef", ".rw2",
+    ".rwl",
 })
 
 BITMAP = frozenset({

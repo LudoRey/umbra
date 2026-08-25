@@ -26,7 +26,10 @@ def read(filepath: Path | str, region: coords.Region | None = None) -> tuple[np.
 
 
 def read_header(filepath: Path | str) -> Header:
-    return exif.build_header_from_exif(exif.read_exif(filepath))
+    metadata = exif.read_exif(filepath)
+    if not metadata:
+        raise ValueError(f"Could not read EXIF metadata from {Path(filepath).name}")
+    return exif.build_header_from_exif(metadata)
 
 
 def read_shape(filepath: Path | str) -> tuple[int, ...]:
