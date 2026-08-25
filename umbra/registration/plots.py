@@ -174,13 +174,33 @@ def anchor_values_figure(records: Sequence[FrameRecord]) -> Figure:
     ]
     for ax, y, ylabel in series:
         y = np.asarray(y, dtype=float)
-        ax.plot(xa[line_order], y[anchor_pos][line_order], color="0.6", linewidth=1, zorder=1)
+        line_x, line_y = _interpolant_line(xa[line_order], y[anchor_pos][line_order], x.min(), x.max())
+        ax.plot(line_x, line_y, color="0.6", linewidth=1, zorder=1)
         _scatter_by_kind(ax, records, x, y)
         ax.set_ylabel(ylabel)
     ax_dy.set_xlabel(xlabel)
     fig.suptitle("Anchor values")
     ax_rot.legend(handles=_kind_handles(records, {"other": "interpolated"}), loc="best", fontsize="small")
     return fig
+
+
+def _interpolant_line(xs: np.ndarray, ys: np.ndarray, x_min: float, x_max: float) -> tuple[np.ndarray, np.ndarray]:
+    """The piecewise-linear interpolant through the anchors (xs, ys), extended to span [x_min, x_max].
+
+    Frames outside the anchor range get their values extrapolated along the end segments, as
+    :func:`umbra.registration.pipeline.build_anchor_values_interpolants` does, so the line has to
+    reach them too.
+    """
+    if len(xs) < 2:
+        return xs, ys
+    line_x, line_y = list(xs), list(ys)
+    if x_min < xs[0]:
+        line_x.insert(0, x_min)
+        line_y.insert(0, ys[0] + (x_min - xs[0]) * (ys[1] - ys[0]) / (xs[1] - xs[0]))
+    if x_max > xs[-1]:
+        line_x.append(x_max)
+        line_y.append(ys[-1] + (x_max - xs[-1]) * (ys[-1] - ys[-2]) / (xs[-1] - xs[-2]))
+    return np.array(line_x), np.array(line_y)
 
 
 def emit(records: Sequence[FrameRecord], radius_bounds: tuple[float, float]) -> None:
